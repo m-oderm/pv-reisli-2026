@@ -20,9 +20,9 @@ const OPEN_METEO_BASE = 'https://api.open-meteo.com/v1/forecast'
 const DAILY_PARAMS =
   'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max'
 
-// Open-Meteo liefert Forecasts üblicherweise bis ca. 16 Tage in die Zukunft.
-// Wir geben uns einen kleinen Sicherheitspuffer.
-const FORECAST_HORIZON_DAYS = 14
+// Open-Meteo liefert mit dem GFS-Modell bis ca. 15 Tage in die Zukunft.
+// Wir bleiben mit 13 Tagen Puffer auf der sicheren Seite.
+const FORECAST_HORIZON_DAYS = 13
 
 export default {
   async fetch(request, env, ctx) {
@@ -52,9 +52,17 @@ export default {
 
     const today = new Date()
     const start = new Date(`${TRAVEL_START}T00:00:00Z`)
+    const end = new Date(`${TRAVEL_END}T00:00:00Z`)
     const msPerDay = 86_400_000
     const daysUntilStart = Math.floor((start.getTime() - today.getTime()) / msPerDay)
-    const withinForecastWindow = daysUntilStart <= FORECAST_HORIZON_DAYS && daysUntilStart >= -7
+    const daysUntilEnd = Math.floor((end.getTime() - today.getTime()) / msPerDay)
+
+    // Wir fragen den exakten Reise-Range nur, wenn auch der letzte Reisetag
+    // sicher im Modell-Fenster liegt. Sonst holen wir den maximalen Forecast,
+    // damit Reisetage automatisch im Frontend auftauchen, sobald sie verfügbar
+    // werden.
+    const withinForecastWindow =
+      daysUntilEnd <= FORECAST_HORIZON_DAYS && daysUntilStart >= -7
 
     const params = new URLSearchParams({
       latitude: String(lat),
@@ -67,7 +75,7 @@ export default {
       params.set('start_date', TRAVEL_START)
       params.set('end_date', TRAVEL_END)
     } else {
-      params.set('forecast_days', '7')
+      params.set('forecast_days', '16')
     }
 
     const apiUrl = `${OPEN_METEO_BASE}?${params.toString()}`
@@ -78,8 +86,17 @@ export default {
       })
 
       if (!upstream.ok) {
+        // Open-Meteo liefert bei Fehlern { error: true, reason: "..." }.
+        // Wir reichen den `reason` durch — er enthält keine Ortsangaben.
+        let detail = ''
+        try {
+          const body = await upstream.json()
+          if (typeof body?.reason === 'string') detail = body.reason
+        } catch {
+          /* ignorieren */
+        }
         return jsonResponse(
-          { error: 'upstream_error', status: upstream.status },
+          { error: 'upstream_error', status: upstream.status, detail },
           502
         )
       }
@@ -94,7 +111,7 @@ export default {
         within_travel_window: withinForecastWindow,
         note: withinForecastWindow
           ? 'Live Forecast aktiv. Das Ziel bleibt geheim.'
-          : 'Vorschau-Forecast (Reisedaten noch ausserhalb des Modells). Das Ziel bleibt geheim.'
+          : 'Live Forecast wird tagesweise verfügbar. Das Ziel bleibt geheim.'
       }
 
       return jsonResponse(sanitised, 200, {
