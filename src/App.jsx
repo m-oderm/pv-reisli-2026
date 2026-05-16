@@ -484,78 +484,107 @@ function Wetter() {
 }
 
 function PoloGraphic() {
-  // Stilisiertes PV-Polo (dunkelblau, weisses/goldenes PV-Monogramm)
+  // Stilisiertes PV-Polo nach Vorlage des realen Vereinspolos:
+  // dunkelblau, weisses PV-Monogramm in feiner Kontur auf der linken Brust,
+  // zwei dunkle Knöpfe, keine Goldakzente.
   return (
     <svg
-      viewBox="0 0 200 220"
+      viewBox="0 0 200 240"
       className="polo"
       role="img"
-      aria-label="PV-Polo, dunkelblau mit PV-Monogramm"
+      aria-label="PV-Polo, dunkelblau mit weissem PV-Monogramm auf der Brust"
     >
       <defs>
         <linearGradient id="poloGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#13335a" />
-          <stop offset="100%" stopColor="#0b223d" />
+          <stop offset="0%" stopColor="#15375d" />
+          <stop offset="55%" stopColor="#10294a" />
+          <stop offset="100%" stopColor="#0a1d34" />
         </linearGradient>
+        {/* Subtile Piqué-Textur */}
+        <pattern id="pique" patternUnits="userSpaceOnUse" width="3" height="3">
+          <rect width="3" height="3" fill="url(#poloGrad)" />
+          <circle cx="0.5" cy="0.5" r="0.35" fill="#06101e" opacity="0.55" />
+          <circle cx="2" cy="2" r="0.35" fill="#06101e" opacity="0.55" />
+        </pattern>
       </defs>
+
       {/* Hauptkörper + Ärmel */}
       <path
         d="
-          M60 40
-          L40 60
-          L20 90
-          L40 110
-          L55 95
-          L55 200
-          Q55 210 65 210
-          L135 210
-          Q145 210 145 200
-          L145 95
-          L160 110
-          L180 90
-          L160 60
-          L140 40
-          L120 50
-          Q100 65 80 50
+          M60 42
+          L40 62
+          L20 92
+          L40 112
+          L55 97
+          L55 224
+          Q55 234 65 234
+          L135 234
+          Q145 234 145 224
+          L145 97
+          L160 112
+          L180 92
+          L160 62
+          L140 42
+          L120 52
+          Q100 66 80 52
           Z
         "
-        fill="url(#poloGrad)"
-        stroke="#b88a3b"
-        strokeWidth="1.6"
+        fill="url(#pique)"
+        stroke="#04101f"
+        strokeWidth="1"
         strokeLinejoin="round"
       />
-      {/* Kragen */}
+
+      {/* Kragen (Strickware) */}
       <path
-        d="M80 50 L100 75 L120 50 L114 46 L100 64 L86 46 Z"
-        fill="#0a1d34"
-        stroke="#b88a3b"
-        strokeWidth="1.2"
+        d="M76 52 L100 78 L124 52 L116 47 L100 65 L84 47 Z"
+        fill="#08182c"
+        stroke="#1a3a60"
+        strokeWidth="0.6"
       />
+      {/* Strick-Rippen — angedeutet */}
+      <g stroke="#1a3a60" strokeWidth="0.25" opacity="0.7">
+        <line x1="80" y1="51" x2="82.5" y2="58" />
+        <line x1="86" y1="51" x2="88.5" y2="60" />
+        <line x1="92" y1="51" x2="94.5" y2="62" />
+        <line x1="105.5" y1="62" x2="108" y2="51" />
+        <line x1="111.5" y1="60" x2="114" y2="51" />
+        <line x1="117.5" y1="58" x2="120" y2="51" />
+      </g>
+
       {/* Knopfleiste */}
-      <line x1="100" y1="64" x2="100" y2="100" stroke="#b88a3b" strokeWidth="1.2" />
-      <circle cx="100" cy="78" r="1.6" fill="#b88a3b" />
-      <circle cx="100" cy="92" r="1.6" fill="#b88a3b" />
-      {/* PV-Monogramm */}
-      <g transform="translate(100 140)" textAnchor="middle">
+      <rect x="96" y="65" width="8" height="50" fill="#08182c" stroke="#1a3a60" strokeWidth="0.4" />
+      <line x1="96.5" y1="65" x2="96.5" y2="115" stroke="#1a3a60" strokeWidth="0.2" strokeDasharray="1 1" />
+      <line x1="103.5" y1="65" x2="103.5" y2="115" stroke="#1a3a60" strokeWidth="0.2" strokeDasharray="1 1" />
+
+      {/* Zwei dunkle Knöpfe mit Loch-Andeutung */}
+      {[78, 100].map((cy) => (
+        <g key={cy}>
+          <circle cx="100" cy={cy} r="2.2" fill="#06101e" stroke="#1a3a60" strokeWidth="0.4" />
+          <circle cx="98.7" cy={cy} r="0.35" fill="#1a3a60" />
+          <circle cx="101.3" cy={cy} r="0.35" fill="#1a3a60" />
+          <circle cx="100" cy={cy - 1.3} r="0.35" fill="#1a3a60" />
+          <circle cx="100" cy={cy + 1.3} r="0.35" fill="#1a3a60" />
+        </g>
+      ))}
+
+      {/* PV-Monogramm — linke Brust, weisse Kontur (Stickerei-Look) */}
+      <g transform="translate(72 158)">
         <text
+          textAnchor="middle"
+          x="0"
           y="0"
+          letterSpacing="-3"
           fontFamily="'Playfair Display', Georgia, serif"
-          fontSize="44"
           fontWeight="800"
-          fill="#f7ecd1"
-          letterSpacing="-2"
+          fontSize="30"
+          fill="none"
+          stroke="#ffffff"
+          strokeWidth="0.85"
+          strokeLinejoin="round"
+          strokeLinecap="round"
         >
           PV
-        </text>
-        <text
-          y="18"
-          fontFamily="'Playfair Display', Georgia, serif"
-          fontSize="9"
-          fontWeight="700"
-          fill="#b88a3b"
-          letterSpacing="3"
-        >
-          ANNO 2026
         </text>
       </g>
     </svg>
