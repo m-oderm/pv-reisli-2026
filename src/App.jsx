@@ -568,19 +568,19 @@ function PoloGraphic() {
         </g>
       ))}
 
-      {/* PV-Monogramm — linke Brust, weisse Kontur (Stickerei-Look) */}
-      <g transform="translate(72 158)">
+      {/* PV-Monogramm — obere rechte Brust, weisse Kontur (Stickerei-Look) */}
+      <g transform="translate(128 118)">
         <text
           textAnchor="middle"
           x="0"
           y="0"
-          letterSpacing="-3"
+          letterSpacing="-2"
           fontFamily="'Playfair Display', Georgia, serif"
           fontWeight="800"
-          fontSize="30"
+          fontSize="20"
           fill="none"
           stroke="#ffffff"
-          strokeWidth="0.85"
+          strokeWidth="0.7"
           strokeLinejoin="round"
           strokeLinecap="round"
         >
