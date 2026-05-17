@@ -646,12 +646,12 @@ function DayDetailModal({ day, onClose }) {
         </header>
 
         <div className="day-modal-details">
-          <DetailTile Icon={Sunrise} label="Sonnenaufgang" value={sunrise} />
-          <DetailTile Icon={Sunset} label="Sonnenuntergang" value={sunset} />
-          <DetailTile Icon={Wind} label="Wind max" value={windText} />
+          <DetailTile Icon={Sunrise} label="Aufgang" value={sunrise} />
+          <DetailTile Icon={Sunset} label="Untergang" value={sunset} />
+          <DetailTile Icon={Wind} label="Wind" value={windText} />
           <DetailTile Icon={SunMedium} label="UV-Index" value={uvText} />
           <DetailTile Icon={Umbrella} label="Regenrisiko" value={rainText} />
-          <DetailTile Icon={Droplets} label="Regen Summe" value={precipText} />
+          <DetailTile Icon={Droplets} label="Regenmenge" value={precipText} />
         </div>
 
         <footer className="day-modal-foot">
