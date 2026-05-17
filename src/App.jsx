@@ -502,11 +502,11 @@ function Reiseleitung() {
 function ConfidenceMeter({ value }) {
   if (value == null) return null
   const filled = Math.max(1, Math.min(5, Math.round(value / 20)))
-  const label = confidenceLabel(value)
+  const bucket = confidenceLabel(value)
   return (
     <div
-      className={`wd-confidence is-${label?.replace(' ', '-')}`}
-      title={`Modell-Vertrauen für diesen Tag: ${value} %`}
+      className={`wd-confidence is-${bucket?.replace(' ', '-')}`}
+      title="Geschätzte Modell-Genauigkeit für diesen Tag"
     >
       <span className="wd-conf-dots" aria-hidden="true">
         {[1, 2, 3, 4, 5].map((n) => (
@@ -514,7 +514,7 @@ function ConfidenceMeter({ value }) {
         ))}
       </span>
       <span className="wd-conf-label">
-        Vertrauen: <strong>{label}</strong>
+        Genauigkeit: <strong>{value} %</strong>
       </span>
     </div>
   )
