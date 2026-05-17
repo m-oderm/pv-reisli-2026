@@ -651,45 +651,6 @@ main { flex: 1; }
   .dresscode { grid-template-columns: 1fr; }
 }
 
-/* ---------- Packliste ---------- */
-
-.packlist {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-}
-.packlist li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  background: var(--paper);
-  border: 1px solid rgba(184, 138, 59, 0.3);
-  border-radius: 12px;
-}
-.packlist li svg { color: var(--green); flex: 0 0 auto; }
-.check {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  background: var(--cream);
-  border: 2px solid var(--green);
-  position: relative;
-  flex: 0 0 16px;
-}
-.check::after {
-  content: '';
-  position: absolute;
-  left: 3px; top: 0;
-  width: 5px; height: 9px;
-  border-right: 2px solid var(--green);
-  border-bottom: 2px solid var(--green);
-  transform: rotate(45deg);
-}
 .lead {
   font-family: var(--serif);
   font-style: italic;
@@ -697,9 +658,168 @@ main { flex: 1; }
   margin: 0 0 16px;
   color: var(--ink);
 }
-@media (max-width: 620px) {
-  .packlist { grid-template-columns: 1fr; }
+
+/* ---------- Packliste mit Fortschritt ---------- */
+
+.pack-progress-card { margin-bottom: 22px; }
+
+.pack-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
 }
+.pack-progress-text {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 18px;
+  color: var(--ink);
+}
+.pack-progress-text strong {
+  color: var(--navy);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.pack-reset {
+  background: none;
+  border: 1px dashed rgba(184, 138, 59, 0.45);
+  color: var(--gold);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.pack-reset:hover {
+  background: rgba(184, 138, 59, 0.14);
+  border-color: var(--gold);
+  color: var(--gold-soft);
+}
+
+.pack-bar {
+  position: relative;
+  height: 10px;
+  background: rgba(184, 138, 59, 0.18);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.pack-bar-fill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--gold), var(--gold-soft));
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.pack-done-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 8px 16px;
+  background: var(--green);
+  color: var(--cream);
+  border-radius: 999px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+}
+.pack-done-banner svg { color: var(--gold-soft); }
+
+.pack-categories {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+@media (min-width: 1100px) {
+  .pack-categories { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .pack-categories { grid-template-columns: 1fr; }
+}
+
+.pack-card { padding: 22px; }
+
+.pack-cat-head {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.pack-cat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: rgba(184, 138, 59, 0.18);
+  color: var(--gold);
+}
+.pack-cat-title {
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--navy);
+  line-height: 1.2;
+}
+.pack-cat-count {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.pack-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 2px;
+}
+.pack-item-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  text-align: left;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 14.5px;
+  line-height: 1.45;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.pack-item-btn:hover {
+  background: rgba(184, 138, 59, 0.10);
+}
+.pack-item-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.pack-item-btn svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--gold);
+  transition: color 0.15s ease;
+}
+.pack-item-text { flex: 1; }
+.pack-item.is-done .pack-item-text {
+  text-decoration: line-through;
+  text-decoration-color: rgba(22, 61, 52, 0.55);
+  color: var(--muted);
+}
+.pack-item.is-done .pack-item-btn svg { color: var(--green); }
 
 /* ---------- Outdoor war Tarnung, Klappkarten ---------- */
 
@@ -708,6 +828,9 @@ main { flex: 1; }
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin: 0 0 18px;
+}
+@media (min-width: 1100px) {
+  .leave-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 620px) {
   .leave-grid { grid-template-columns: 1fr; }
@@ -825,20 +948,22 @@ main { flex: 1; }
 }
 
 .leave-badge {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin: 4px 0 0;
-  padding: 5px 12px;
+  padding: 8px 14px;
   background: rgba(184, 138, 59, 0.12);
   border: 1px dashed rgba(184, 138, 59, 0.5);
-  border-radius: 999px;
-  font-size: 11px;
-  letter-spacing: 1.4px;
+  border-radius: 14px;
+  font-size: 12px;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
+  line-height: 1.4;
   color: var(--gold);
 }
 .leave-badge svg { flex: 0 0 auto; }
+.leave-badge span { flex: 1; }
 
 /* ---------- Wichtig ---------- */
 
@@ -985,28 +1110,27 @@ main { flex: 1; }
     border-color: rgba(247, 236, 209, 0.4);
   }
 
-  /* Checkbox in der Packliste mit dunklem Innenleben und mintigem Haken */
-  .check {
-    background: #1a2d48;
-    border-color: #4a8a78;
-  }
-  .check::after {
-    border-right-color: #6fb39c;
-    border-bottom-color: #6fb39c;
-  }
-  .packlist li svg { color: #6fb39c; }
-
   /* Leave-Card-Glow für die Strikeline auf dem dunklen Karton */
   .leave-icon::after {
     box-shadow: 0 0 0 1.5px var(--paper);
   }
 
-  /* Wetter-Karten: dezenter Border im dunklen Modus */
+  /* Wetter- und Outdoor-Karten: dezenter Border im dunklen Modus */
   .weather-day,
-  .leave-card,
-  .packlist li {
+  .leave-card {
     border-color: rgba(184, 138, 59, 0.22);
   }
+
+  /* Packlisten-Items: heller Hover, mintige Häkchen bei erledigt */
+  .pack-item-btn:hover {
+    background: rgba(247, 236, 209, 0.06);
+  }
+  .pack-item.is-done .pack-item-btn svg { color: #6fb39c; }
+  .pack-item.is-done .pack-item-text {
+    text-decoration-color: rgba(111, 179, 156, 0.55);
+    color: var(--muted);
+  }
+  .pack-cat-title { color: var(--ink); }
 
   /* Daten-Trennlinien dezenter */
   .data-list li + li {

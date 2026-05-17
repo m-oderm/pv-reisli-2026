@@ -2,31 +2,37 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Beer,
+  Bug,
   Building2,
   CalendarDays,
+  CheckSquare,
   ChevronDown,
   CircleX,
   Clock,
   CloudRain,
   CloudSun,
   Compass,
+  Droplets,
+  Dumbbell,
+  Flame,
   Footprints,
-  Glasses,
+  HeartPulse,
   HelpCircle,
-  IdCard,
+  Lightbulb,
   Lock,
   Luggage,
+  Map,
   MapPin,
   MessageCircle,
   Mountain,
   Music,
-  Pill,
   RefreshCw,
   ShieldCheck,
   Shirt,
   Smartphone,
   Snowflake,
   Sparkles,
+  Square,
   Sun,
   Tent,
   Ticket,
@@ -651,33 +657,214 @@ function Dresscode() {
   )
 }
 
-const PACKLIST_ITEMS = [
-  { Icon: IdCard, text: 'ID oder Reisepass' },
-  { Icon: WalletCards, text: 'Portemonnaie, Karte, etwas Bargeld' },
-  { Icon: Smartphone, text: 'Handy, Ladegerät, Powerbank' },
-  { Icon: Shirt, text: 'PV-Polo' },
-  { Icon: Shirt, text: 'Ein Hemd oder Ausgangs-Outfit' },
-  { Icon: Footprints, text: 'Bequeme Schuhe' },
-  { Icon: Umbrella, text: 'Leichte Jacke oder Regenschutz' },
-  { Icon: Glasses, text: 'Sonnenbrille' },
-  { Icon: Pill, text: 'Toilettenartikel und Medikamente' }
+const PACK_STORAGE_KEY = 'pv-reisli-2026.pack-status'
+
+const PACKLIST_CATEGORIES = [
+  {
+    id: 'docs',
+    Icon: WalletCards,
+    title: 'Dokumente und Geld',
+    items: [
+      { id: 'docs-id', text: 'ID oder Reisepass' },
+      { id: 'docs-insurance', text: 'Krankenkassenkarte oder Versicherungskarte' },
+      { id: 'docs-card', text: 'Bankkarte oder Kreditkarte' },
+      { id: 'docs-cash', text: 'Etwas Bargeld in Euro' },
+      { id: 'docs-tickets', text: 'Zugticket und Reiseunterlagen digital verfügbar' },
+      { id: 'docs-emergency', text: 'Notfallkontakt gespeichert' }
+    ]
+  },
+  {
+    id: 'tech',
+    Icon: Smartphone,
+    title: 'Technik',
+    items: [
+      { id: 'tech-phone', text: 'Handy' },
+      { id: 'tech-charger', text: 'Ladekabel' },
+      { id: 'tech-powerbank', text: 'Powerbank' },
+      { id: 'tech-headphones', text: 'Kopfhörer' },
+      { id: 'tech-adapter', text: 'Adapter oder Mehrfachstecker, falls nötig' },
+      { id: 'tech-offline', text: 'Offline-Karte oder Screenshots der wichtigsten Infos' }
+    ]
+  },
+  {
+    id: 'clothes',
+    Icon: Shirt,
+    title: 'Kleidung',
+    items: [
+      { id: 'cl-polo', text: 'PV-Polo' },
+      { id: 'cl-shirt', text: 'Hemd für den Abend' },
+      { id: 'cl-outfit', text: 'Ausgangs-Outfit' },
+      { id: 'cl-shoes', text: 'Bequeme Schuhe' },
+      { id: 'cl-jacket', text: 'Leichte Jacke' },
+      { id: 'cl-rain', text: 'Regenschutz oder kleiner Schirm' },
+      { id: 'cl-sunglasses', text: 'Sonnenbrille' },
+      { id: 'cl-underwear', text: 'Unterwäsche und Socken' },
+      { id: 'cl-sleep', text: 'Schlafkleidung' },
+      { id: 'cl-spare', text: 'Ersatzshirt' }
+    ]
+  },
+  {
+    id: 'hygiene',
+    Icon: HeartPulse,
+    title: 'Hygiene und Gesundheit',
+    items: [
+      { id: 'hy-toilet', text: 'Toilettenartikel' },
+      { id: 'hy-teeth', text: 'Zahnbürste und Zahnpasta' },
+      { id: 'hy-deo', text: 'Deo' },
+      { id: 'hy-meds', text: 'Persönliche Medikamente' },
+      { id: 'hy-painkillers', text: 'Schmerzmittel' },
+      { id: 'hy-bandaid', text: 'Pflaster' },
+      { id: 'hy-sun', text: 'Sonnencreme' },
+      { id: 'hy-tissue', text: 'Taschentücher' },
+      { id: 'hy-gum', text: 'Kaugummi oder Fisherman’s Friend' }
+    ]
+  },
+  {
+    id: 'travel',
+    Icon: Luggage,
+    title: 'Für unterwegs',
+    items: [
+      { id: 'tr-bottle', text: 'Trinkflasche' },
+      { id: 'tr-snacks', text: 'Snacks für den Zug' },
+      { id: 'tr-bag', text: 'Kleine Tasche oder Bauchtasche' },
+      { id: 'tr-idcopy', text: 'Kopie oder Foto der ID' },
+      { id: 'tr-mood', text: 'Gute Laune' },
+      { id: 'tr-thirst', text: 'Stabiler Durst' }
+    ]
+  }
 ]
 
-function Packliste() {
+function usePackStatus() {
+  const [done, setDone] = useState(() => {
+    if (typeof window === 'undefined') return new Set()
+    try {
+      const raw = window.localStorage.getItem(PACK_STORAGE_KEY)
+      if (!raw) return new Set()
+      const parsed = JSON.parse(raw)
+      return new Set(Array.isArray(parsed) ? parsed : [])
+    } catch {
+      return new Set()
+    }
+  })
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(PACK_STORAGE_KEY, JSON.stringify([...done]))
+    } catch {
+      /* Speicher nicht verfügbar, ignorieren */
+    }
+  }, [done])
+
+  const toggle = useCallback((id) => {
+    setDone((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const reset = useCallback(() => setDone(new Set()), [])
+
+  return { done, toggle, reset }
+}
+
+function PackCategoryCard({ category, done, onToggle, delay }) {
+  const { Icon, title, items } = category
+  const completed = items.filter((item) => done.has(item.id)).length
+  return (
+    <Card className="pack-card card-cream" delay={delay}>
+      <div className="pack-cat-head">
+        <span className="pack-cat-icon" aria-hidden="true"><Icon size={20} /></span>
+        <h3 className="pack-cat-title">{title}</h3>
+        <span className="pack-cat-count">{completed} / {items.length}</span>
+      </div>
+      <ul className="pack-items">
+        {items.map((item) => {
+          const isDone = done.has(item.id)
+          return (
+            <li key={item.id} className={`pack-item ${isDone ? 'is-done' : ''}`}>
+              <button
+                type="button"
+                className="pack-item-btn"
+                onClick={() => onToggle(item.id)}
+                aria-pressed={isDone}
+              >
+                {isDone
+                  ? <CheckSquare size={18} aria-hidden="true" />
+                  : <Square size={18} aria-hidden="true" />}
+                <span className="pack-item-text">{item.text}</span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </Card>
+  )
+}
+
+function PackingList() {
+  const { done, toggle, reset } = usePackStatus()
+
+  const totalCount = useMemo(
+    () => PACKLIST_CATEGORIES.reduce((sum, cat) => sum + cat.items.length, 0),
+    []
+  )
+  const doneCount = useMemo(
+    () =>
+      PACKLIST_CATEGORIES.reduce(
+        (sum, cat) => sum + cat.items.filter((item) => done.has(item.id)).length,
+        0
+      ),
+    [done]
+  )
+  const percent = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
+  const allDone = totalCount > 0 && doneCount === totalCount
+
   return (
     <section id="packliste" className="section">
       <SectionTitle icon={Luggage} kicker="Was muss mit" title="Packliste" />
-      <Card className="card-cream">
-        <ul className="packlist">
-          {PACKLIST_ITEMS.map(({ Icon, text }) => (
-            <li key={text}>
-              <span className="check" aria-hidden="true" />
-              <Icon size={18} />
-              <span>{text}</span>
-            </li>
-          ))}
-        </ul>
+
+      <Card className="pack-progress-card">
+        <div className="pack-progress-head">
+          <p className="pack-progress-text">
+            Packstatus: <strong>{doneCount} / {totalCount}</strong> erledigt
+          </p>
+          {doneCount > 0 && (
+            <button type="button" className="pack-reset" onClick={reset}>
+              Zurücksetzen
+            </button>
+          )}
+        </div>
+        <div
+          className="pack-bar"
+          role="progressbar"
+          aria-valuenow={percent}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Fortschritt der Packliste"
+        >
+          <div className="pack-bar-fill" style={{ width: `${percent}%` }} />
+        </div>
+        {allDone && (
+          <p className="pack-done-banner">
+            <Sparkles size={16} aria-hidden="true" />
+            <span>Rekrut ist reisefähig.</span>
+          </p>
+        )}
       </Card>
+
+      <div className="pack-categories">
+        {PACKLIST_CATEGORIES.map((cat, idx) => (
+          <PackCategoryCard
+            key={cat.id}
+            category={cat}
+            done={done}
+            onToggle={toggle}
+            delay={idx * 0.05}
+          />
+        ))}
+      </div>
     </section>
   )
 }
@@ -713,10 +900,66 @@ const LEAVE_AT_HOME = [
   },
   {
     id: 'survival',
-    Icon: Compass,
+    Icon: ShieldCheck,
     title: 'Survival-Ausrüstung',
     label: 'Übertrieben',
     detail: 'Die wichtigste Überlebensausrüstung bleibt: Handy, Ladekabel, Portemonnaie und ein stabiler Durst.'
+  },
+  {
+    id: 'kocher',
+    Icon: Flame,
+    title: 'Campingkocher',
+    label: 'Keine Feldküche',
+    detail: 'Die warme Verpflegung wurde durch Orte ersetzt, an denen Menschen freiwillig Teller bringen. Revolutionär.'
+  },
+  {
+    id: 'stirnlampe',
+    Icon: Lightbulb,
+    title: 'Stirnlampe',
+    label: 'Nicht nötig',
+    detail: 'Sollte es dunkel werden, folgen wir einfach dem Licht der nächsten Bar. Wissenschaftlich kaum geprüft, praktisch bewährt.'
+  },
+  {
+    id: 'karte',
+    Icon: Map,
+    title: 'Wanderkarte',
+    label: 'Falsche Disziplin',
+    detail: 'Die Navigation übernimmt die Reiseleitung. Was ungefähr so beruhigend ist, wie es klingt.'
+  },
+  {
+    id: 'mueckennetz',
+    Icon: Bug,
+    title: 'Mückennetz',
+    label: 'Übervorsichtig',
+    detail: 'Die grösste Gefahr summt nicht. Sie fragt vermutlich: «Nur noch eins?»'
+  },
+  {
+    id: 'messer',
+    Icon: CircleX,
+    title: 'Outdoor-Messer',
+    label: 'Zuhause lassen',
+    detail: 'Wir reisen zivilisiert. Geschnitten wird höchstens die Gesprächsqualität nach Mitternacht.'
+  },
+  {
+    id: 'wasserfilter',
+    Icon: Droplets,
+    title: 'Wasserfilter',
+    label: 'Nicht priorisiert',
+    detail: 'Die Reiseleitung hat bestätigt, dass andere Flüssigkeiten organisatorisch höher eingestuft wurden.'
+  },
+  {
+    id: 'kompass',
+    Icon: Compass,
+    title: 'Kompass',
+    label: 'Symbolisch erlaubt',
+    detail: 'Darf zuhause bleiben. Die Gruppe findet ihre Richtung erfahrungsgemäss über Hunger, Durst und schlechte Entscheidungen.'
+  },
+  {
+    id: 'ambitionen',
+    Icon: Dumbbell,
+    title: 'Ernsthafte Outdoor-Ambitionen',
+    label: 'Streng verboten',
+    detail: 'Wer trotzdem sportlichen Ehrgeiz zeigt, wird sofort zum Gepäckbeauftragten befördert.'
   }
 ]
 
@@ -758,7 +1001,7 @@ function LeaveAtHomeCard({ item, isOpen, onToggle }) {
   )
 }
 
-function ZuhauseLassen() {
+function OutdoorAccordion() {
   const [openIds, setOpenIds] = useState(() => new Set())
   const toggle = (id) => {
     setOpenIds((prev) => {
@@ -787,7 +1030,7 @@ function ZuhauseLassen() {
         </div>
         <p className="leave-badge">
           <CircleX size={12} aria-hidden="true" />
-          <span>Amtlich bestätigt durch Pegelspitze Reisen.</span>
+          <span>Amtlich bestätigt durch Pegelspitze Reisen. Outdoor war Tarnung, Durstplanung ist real.</span>
         </p>
       </Card>
     </section>
@@ -880,8 +1123,8 @@ export default function App() {
           <Reiseleitung />
           <Wetter />
           <Dresscode />
-          <Packliste />
-          <ZuhauseLassen />
+          <PackingList />
+          <OutdoorAccordion />
           <Wichtig />
         </div>
       </main>
