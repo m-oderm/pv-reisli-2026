@@ -379,7 +379,12 @@ function Eckdaten() {
   )
 }
 
-const COUNTDOWN_BLOCKS = ['Tage', 'Stunden', 'Minuten', 'Sekunden']
+const COUNTDOWN_BLOCKS = [
+  { key: 'days', label: 'Tage' },
+  { key: 'hours', label: 'Stunden' },
+  { key: 'minutes', label: 'Minuten' },
+  { key: 'seconds', label: 'Sekunden' }
+]
 
 function CountdownSection() {
   const time = useCountdown(COUNTDOWN_TARGET_MS)
@@ -393,15 +398,12 @@ function CountdownSection() {
           </p>
         ) : (
           <div className="countdown-grid">
-            {COUNTDOWN_BLOCKS.map((label) => {
-              const key = label.toLowerCase()
-              return (
-                <div key={label} className="cd-block">
-                  <div className="cd-value">{String(time[key]).padStart(2, '0')}</div>
-                  <div className="cd-label">{label}</div>
-                </div>
-              )
-            })}
+            {COUNTDOWN_BLOCKS.map(({ key, label }) => (
+              <div key={key} className="cd-block">
+                <div className="cd-value">{String(time[key]).padStart(2, '0')}</div>
+                <div className="cd-label">{label}</div>
+              </div>
+            ))}
           </div>
         )}
         <p className="countdown-foot">
