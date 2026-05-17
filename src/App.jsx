@@ -57,6 +57,10 @@ const MS_PER_DAY = 24 * MS_PER_HOUR
 const NAV_OFFSET_PX = 72
 const HOURLY_REFRESH_MS = MS_PER_HOUR
 
+// Bewegungs-Kurven, identisch zu den CSS-Variablen --ease-smooth und --ease-out-soft.
+const EASE_SMOOTH = [0.4, 0, 0.2, 1]
+const EASE_OUT_SOFT = [0.16, 1, 0.3, 1]
+
 // 30.05.2026, 07:45 Uhr Europe/Zurich. Ende Mai gilt CEST, also UTC+2.
 const COUNTDOWN_TARGET_MS = new Date('2026-05-30T07:45:00+02:00').getTime()
 
@@ -291,7 +295,7 @@ function Hero() {
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
+          transition={{ duration: 0.8, ease: EASE_OUT_SOFT }}
           className="hero-title"
         >
           PV-Reisli<br />
@@ -299,18 +303,18 @@ function Hero() {
         </motion.h1>
 
         <motion.div
-          initial={{ opacity: 0, scale: 0.9, rotate: -1.5 }}
+          initial={{ opacity: 0, scale: 0.92, rotate: -1.5 }}
           animate={{
             opacity: 1,
             scale: 1,
             rotate: [-1.5, -2.6, -1.5]
           }}
           transition={{
-            opacity: { delay: 0.3, duration: 0.5 },
-            scale: { delay: 0.3, duration: 0.5 },
+            opacity: { delay: 0.35, duration: 0.6, ease: EASE_OUT_SOFT },
+            scale: { delay: 0.35, duration: 0.6, ease: EASE_OUT_SOFT },
             rotate: {
-              delay: 0.9,
-              duration: 5,
+              delay: 1.1,
+              duration: 5.5,
               repeat: Infinity,
               ease: 'easeInOut'
             }
@@ -363,7 +367,7 @@ function Card({ children, className = '', delay = 0 }) {
       initial={{ opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-80px' }}
-      transition={{ duration: 0.55, delay }}
+      transition={{ duration: 0.6, delay, ease: EASE_OUT_SOFT }}
       className={`card ${className}`}
     >
       {children}
@@ -426,10 +430,10 @@ function CountdownSection() {
                     <AnimatePresence mode="popLayout" initial={false}>
                       <motion.span
                         key={value}
-                        initial={{ y: -10, opacity: 0 }}
+                        initial={{ y: -14, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: 10, opacity: 0 }}
-                        transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+                        exit={{ y: 14, opacity: 0 }}
+                        transition={{ duration: 0.34, ease: EASE_OUT_SOFT }}
                       >
                         {value}
                       </motion.span>
@@ -533,6 +537,7 @@ function Wetter() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.32, ease: EASE_OUT_SOFT }}
             className="weather-grid"
           >
             {visibleDays.length === 0 && !loading && (
@@ -799,12 +804,16 @@ function usePackStatus() {
 
 const PACK_LIST_VARIANTS = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.03 } }
+  visible: { transition: { staggerChildren: 0.045, delayChildren: 0.05 } }
 }
 
 const PACK_ITEM_VARIANTS = {
-  hidden: { opacity: 0, y: 6 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.25 } }
+  hidden: { opacity: 0, y: 10 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.42, ease: EASE_OUT_SOFT }
+  }
 }
 
 function PackCategoryCard({ category, done, onToggle, delay }) {
@@ -842,10 +851,10 @@ function PackCategoryCard({ category, done, onToggle, delay }) {
                   <motion.span
                     key={isDone ? 'done' : 'todo'}
                     className="pack-check"
-                    initial={{ scale: 0.6, opacity: 0 }}
+                    initial={{ scale: 0.7, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.6, opacity: 0 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+                    exit={{ scale: 0.7, opacity: 0 }}
+                    transition={{ type: 'spring', stiffness: 380, damping: 28, mass: 0.6 }}
                   >
                     {isDone
                       ? <CheckSquare size={18} aria-hidden="true" />
@@ -1049,7 +1058,10 @@ function LeaveAtHomeCard({ item, isOpen, onToggle }) {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            transition={{
+              height: { duration: 0.36, ease: EASE_OUT_SOFT },
+              opacity: { duration: 0.28, ease: EASE_SMOOTH }
+            }}
             className="leave-panel"
           >
             <p className="leave-detail">{detail}</p>
