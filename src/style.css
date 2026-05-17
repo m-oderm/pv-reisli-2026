@@ -920,3 +920,96 @@ main { flex: 1; }
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------- Dark Mode, folgt dem OS-/Browser-Setting ---------- */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --paper: #0a1525;
+    --cream-light: #14253c;
+
+    --ink: #ebe1c4;
+    --ink-soft: #b8a989;
+    --muted: #847962;
+
+    --gold: #d8b06a;
+    --gold-soft: #e6c685;
+
+    --shadow-card: 0 16px 32px -20px rgba(0, 0, 0, 0.55),
+      0 4px 12px -6px rgba(0, 0, 0, 0.35);
+    --shadow-hover: 0 22px 44px -20px rgba(0, 0, 0, 0.7),
+      0 6px 16px -6px rgba(0, 0, 0, 0.5);
+  }
+
+  body {
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(184, 138, 59, 0.10), transparent 40%),
+      radial-gradient(circle at 80% 60%, rgba(22, 61, 52, 0.08), transparent 45%),
+      repeating-linear-gradient(45deg, rgba(184, 138, 59, 0.04) 0 2px, transparent 2px 6px);
+  }
+
+  /* Klassen, die im Light Mode color: var(--navy) als dunklen Textwert nutzen */
+  .section-title h2,
+  .leader-name,
+  .wd-max,
+  .leave-title {
+    color: var(--ink);
+  }
+
+  /* Cream-Card-Variante: dunkler Karton statt cremefarben */
+  .card-cream {
+    background: linear-gradient(180deg, #1a2d48, #14253c);
+  }
+
+  /* Navy-Card: etwas heller als Body, damit sie sich abhebt */
+  .card-navy {
+    background: linear-gradient(180deg, #1a3556, #14274a);
+    border-color: rgba(184, 138, 59, 0.55);
+  }
+
+  /* Card-Border insgesamt etwas wärmer */
+  .card {
+    border-color: rgba(184, 138, 59, 0.3);
+  }
+
+  /* btn-ghost: war auf hellem Cream-Karton, jetzt umgekehrt */
+  .btn-ghost {
+    background: rgba(247, 236, 209, 0.06);
+    border-color: rgba(247, 236, 209, 0.22);
+    color: var(--ink);
+  }
+  .btn-ghost:hover {
+    background: rgba(247, 236, 209, 0.14);
+    border-color: rgba(247, 236, 209, 0.4);
+  }
+
+  /* Checkbox in der Packliste mit dunklem Innenleben und mintigem Haken */
+  .check {
+    background: #1a2d48;
+    border-color: #4a8a78;
+  }
+  .check::after {
+    border-right-color: #6fb39c;
+    border-bottom-color: #6fb39c;
+  }
+  .packlist li svg { color: #6fb39c; }
+
+  /* Leave-Card-Glow für die Strikeline auf dem dunklen Karton */
+  .leave-icon::after {
+    box-shadow: 0 0 0 1.5px var(--paper);
+  }
+
+  /* Wetter-Karten: dezenter Border im dunklen Modus */
+  .weather-day,
+  .leave-card,
+  .packlist li {
+    border-color: rgba(184, 138, 59, 0.22);
+  }
+
+  /* Daten-Trennlinien dezenter */
+  .data-list li + li {
+    border-top-color: rgba(184, 138, 59, 0.2);
+  }
+}
