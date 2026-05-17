@@ -1,0 +1,37 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Dependencies
+node_modules
+
+# Build
+dist
+dist-ssr
+.vite
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+
+# Local env
+.env
+.env.local
+.env.*.local
+
+# Wrangler / Cloudflare
+.wrangler
+.dev.vars
+
+# Lokale Audit-Skripte mit Suchbegriffen, niemals committen
+scripts/audit-leaks.sh
+
+# Aus SVG generierte Icons, beim Build neu erzeugt
+public/og-image.png
+public/apple-touch-icon.png

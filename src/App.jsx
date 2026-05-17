@@ -4,6 +4,7 @@ import {
   Beer,
   Building2,
   CalendarDays,
+  ChevronDown,
   CircleX,
   Clock,
   CloudRain,
@@ -682,14 +683,91 @@ function Packliste() {
 }
 
 const LEAVE_AT_HOME = [
-  { Icon: Mountain, text: 'Wanderschuhe' },
-  { Icon: Tent, text: 'Zelt' },
-  { Icon: Footprints, text: 'Trekkingstöcke' },
-  { Icon: Tent, text: 'Schlafsack' },
-  { Icon: Compass, text: 'Survival-Ausrüstung' }
+  {
+    id: 'wanderschuhe',
+    Icon: Footprints,
+    title: 'Wanderschuhe',
+    label: 'Bleiben daheim',
+    detail: 'Nicht nötig. Die härteste Steigung wird vermutlich die Treppe zur nächsten Bar.'
+  },
+  {
+    id: 'zelt',
+    Icon: Tent,
+    title: 'Zelt',
+    label: 'Wurde entlastet',
+    detail: 'Die Reiseleitung hat entschieden, dass Dächer überschätzt, aber trotzdem willkommen sind.'
+  },
+  {
+    id: 'trekkingstoecke',
+    Icon: Mountain,
+    title: 'Trekkingstöcke',
+    label: 'Keine Verwendung',
+    detail: 'Nur erlaubt, wenn sie gleichzeitig als Taktstock im Club funktionieren.'
+  },
+  {
+    id: 'schlafsack',
+    Icon: Luggage,
+    title: 'Schlafsack',
+    label: 'Fortschritt siegt',
+    detail: 'Wird durch ein Bett ersetzt. Die Zivilisation hat gewonnen.'
+  },
+  {
+    id: 'survival',
+    Icon: Compass,
+    title: 'Survival-Ausrüstung',
+    label: 'Übertrieben',
+    detail: 'Die wichtigste Überlebensausrüstung bleibt: Handy, Ladekabel, Portemonnaie und ein stabiler Durst.'
+  }
 ]
 
+function LeaveAtHomeCard({ item, isOpen, onToggle }) {
+  const { Icon, title, label, detail, id } = item
+  const panelId = `leave-${id}-panel`
+  return (
+    <div className={`leave-card ${isOpen ? 'is-open' : ''}`}>
+      <button
+        type="button"
+        className="leave-card-header"
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        onClick={onToggle}
+      >
+        <span className="leave-icon" aria-hidden="true"><Icon size={20} /></span>
+        <span className="leave-text">
+          <span className="leave-title">{title}</span>
+          <span className="leave-label">{label}</span>
+        </span>
+        <ChevronDown size={20} className="leave-chevron" aria-hidden="true" />
+      </button>
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            id={panelId}
+            role="region"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            className="leave-panel"
+          >
+            <p className="leave-detail">{detail}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
 function ZuhauseLassen() {
+  const [openIds, setOpenIds] = useState(() => new Set())
+  const toggle = (id) => {
+    setOpenIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
   return (
     <section id="zuhause" className="section">
       <SectionTitle icon={CircleX} kicker="Kann zuhause bleiben" title="Outdoor war Tarnung" />
@@ -697,15 +775,20 @@ function ZuhauseLassen() {
         <p className="lead">
           Die falsche Fährte war Absicht. Die Wanderschuhe dürfen sich ausruhen.
         </p>
-        <ul className="strikelist">
-          {LEAVE_AT_HOME.map(({ Icon, text }) => (
-            <li key={text}>
-              <Icon size={18} />
-              <span>{text}</span>
-              <CircleX size={16} className="strike-x" />
-            </li>
+        <div className="leave-grid">
+          {LEAVE_AT_HOME.map((item) => (
+            <LeaveAtHomeCard
+              key={item.id}
+              item={item}
+              isOpen={openIds.has(item.id)}
+              onToggle={() => toggle(item.id)}
+            />
           ))}
-        </ul>
+        </div>
+        <p className="leave-badge">
+          <CircleX size={12} aria-hidden="true" />
+          <span>Amtlich bestätigt durch Pegelspitze Reisen.</span>
+        </p>
       </Card>
     </section>
   )
