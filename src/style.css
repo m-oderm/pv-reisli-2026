@@ -751,14 +751,29 @@ main { flex: 1; }
 }
 
 .leave-icon {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 36px;
   height: 36px;
   border-radius: 999px;
-  background: rgba(184, 138, 59, 0.18);
-  color: var(--gold);
+  background: rgba(201, 111, 43, 0.14);
+  color: var(--orange);
+}
+.leave-icon svg { opacity: 0.7; }
+.leave-icon::after {
+  content: '';
+  position: absolute;
+  left: -3px;
+  right: -3px;
+  top: 50%;
+  height: 2.5px;
+  border-radius: 2px;
+  background: var(--orange);
+  transform: translateY(-50%) rotate(-32deg);
+  transform-origin: center;
+  box-shadow: 0 0 0 1.5px var(--paper);
 }
 
 .leave-text {
@@ -772,6 +787,10 @@ main { flex: 1; }
   font-weight: 700;
   font-size: 17px;
   color: var(--navy);
+  text-decoration: line-through;
+  text-decoration-color: rgba(201, 111, 43, 0.85);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
 }
 .leave-label {
   margin-top: 3px;
