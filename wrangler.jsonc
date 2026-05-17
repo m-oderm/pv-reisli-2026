@@ -1,14 +1,14 @@
 /**
  * Cloudflare Workers + Static Assets Konfiguration
- * ------------------------------------------------
- * Eine einzige Deployment-Einheit:
- *   • Frontend (Vite-Build aus `dist/`)  → wird als statische Assets ausgeliefert
- *   • Wetter-Proxy `/api/travel-conditions` → läuft im Worker (`worker/index.js`)
  *
- * Build & Deploy laufen via:
+ * Eine Deploy-Einheit:
+ *   * Frontend aus `dist/` als statische Assets
+ *   * Wetter-Proxy `/api/travel-conditions` im Worker
+ *
+ * Build und Deploy:
  *   bun run build && npx wrangler deploy
  *
- * Geheime Werte (Standort) NIEMALS hier eintragen — nur als Secrets:
+ * Geheime Werte zum Standort gehören niemals hierhin, nur als Secrets:
  *   wrangler secret put SECRET_WEATHER_LAT
  *   wrangler secret put SECRET_WEATHER_LON
  *   wrangler secret put SECRET_WEATHER_TZ

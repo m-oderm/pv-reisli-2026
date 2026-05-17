@@ -1,11 +1,10 @@
 /* ============================================================
-   PV-Reisli 2026 — Pegelspitze Reisen
+   PV-Reisli 2026, Pegelspitze Reisen
    Retro-Reiseplakat / Geheime Mission / Schweizer Vereinsausflug
    ============================================================ */
 
 :root {
   --navy: #0b223d;
-  --navy-soft: #13335a;
   --cream: #f7ecd1;
   --cream-light: #f7f0df;
   --paper: #fbf6e7;
@@ -13,7 +12,6 @@
   --gold-soft: #d8b06a;
   --green: #163d34;
   --orange: #c96f2b;
-  --orange-soft: #e08a44;
   --ink: #132238;
   --ink-soft: #2a3a55;
   --muted: #6b6353;

@@ -1,20 +1,20 @@
 # PV-Reisli 2026 · Pegelspitze Reisen
 
 Eine professionelle, augenzwinkernde One-Page-Reisewebsite für das **PV-Reisli 2026**.
-Vier Tage, sechs Mann, ein Plan — und ein Zielort, der bis zur Abfahrt **geheim** bleibt.
+Vier Tage, sechs Mann, ein Plan, und ein Zielort, der bis zur Abfahrt **geheim** bleibt.
 
-> *Mit Stil, Schalk und solider Durstplanung.*
+> *Mit Stil, Humor und solider Durstplanung.*
 
 ---
 
 ## Stack
 
-- **Vite 6 + React 18** — Build und Frontend
-- **Framer Motion** — Einblendungen und Mikro-Animationen
-- **Lucide React** — Icon-Set
-- **Vanilla CSS** — kein Tailwind, damit der Build auf Cloudflare sauber durchläuft
-- **Cloudflare Workers + Static Assets** — gesamtes Deployment in einer Einheit
-- **Cloudflare Worker** mit Secrets — serverseitiger Wetter-Proxy
+- **Vite 6 + React 18**: Build und Frontend
+- **Framer Motion**: Einblendungen und Mikro-Animationen
+- **Lucide React**: Icon-Set
+- **Vanilla CSS**: kein Tailwind, damit der Build auf Cloudflare sauber durchläuft
+- **Cloudflare Workers + Static Assets**: gesamtes Deployment in einer Einheit
+- **Cloudflare Worker** mit Secrets: serverseitiger Wetter-Proxy
 
 ## Projektstruktur
 
@@ -23,7 +23,7 @@ pv-reisli-2026/
 ├── index.html
 ├── package.json
 ├── vite.config.js
-├── wrangler.jsonc          ← Workers + Static Assets Deploy-Config (Root)
+├── wrangler.jsonc          ← Workers + Static Assets Deploy-Config im Root
 ├── src/
 │   ├── main.jsx
 │   ├── App.jsx             ← alle Sektionen
@@ -47,7 +47,7 @@ Für den Wetter-Proxy lokal in einem zweiten Terminal:
 
 ```bash
 cd worker
-# .dev.vars anlegen (gitignored) — Werte kennt die Reiseleitung
+# .dev.vars anlegen, gitignored. Werte kennt die Reiseleitung.
 cat > .dev.vars <<'EOF'
 SECRET_WEATHER_LAT=...
 SECRET_WEATHER_LON=...
@@ -57,10 +57,10 @@ EOF
 npx wrangler dev travel-conditions.js --port 8787
 ```
 
-`vite.config.js` proxiet `/api/*` automatisch auf `http://127.0.0.1:8787` — das
+`vite.config.js` proxiet `/api/*` automatisch auf `http://127.0.0.1:8787`. Das
 Frontend ruft lokal dieselbe URL auf wie in Production.
 
-## Production-Build (lokal)
+## Production-Build, lokal
 
 ```bash
 npm run build
@@ -70,9 +70,9 @@ Output landet in `dist/`.
 
 ---
 
-## Deployment — Cloudflare Workers + Static Assets (einzige nötige Variante)
+## Deployment: Cloudflare Workers + Static Assets
 
-Cloudflare deployt das Projekt als **Worker mit Static Assets**: ein einziger
+Cloudflare deployt das Projekt als **Worker mit Static Assets**. Ein einziger
 Worker (`worker/index.js`) routet `/api/travel-conditions` an den Wetter-Proxy
 und liefert für alles andere die statischen Files aus `dist/` aus. Konfiguriert
 über die `wrangler.jsonc` im Repo-Root.
@@ -96,7 +96,7 @@ und liefert für alles andere die statischen Files aus `dist/` aus. Konfiguriert
    | `SECRET_WEATHER_LON`  | *(Längengrad Ziel)*   |
    | `SECRET_WEATHER_TZ`   | *(IANA-Zeitzone)*     |
 
-   Die echten Werte stehen ausschliesslich hier — nicht im Repo, nicht in
+   Die echten Werte stehen ausschliesslich hier: nicht im Repo, nicht in
    `wrangler.jsonc`, nicht im Frontend-Bundle.
 
 4. **Deploy starten.** Cloudflare führt aus:
@@ -112,15 +112,15 @@ und liefert für alles andere die statischen Files aus `dist/` aus. Konfiguriert
    curl https://<projektname>.<account>.workers.dev/api/travel-conditions
    ```
    Der API-Call muss JSON liefern mit `daily`, `daily_units`, `note`,
-   `within_travel_window` — und **kein** `latitude`, `longitude`, `timezone`,
+   `within_travel_window`, und **kein** `latitude`, `longitude`, `timezone`,
    `location`, `name`, `country`.
 
-### Eigene Domain anhängen (optional)
+### Eigene Domain anhängen, optional
 
 *Workers & Pages → das Projekt → Settings → Domains & Routes → Add* und z. B.
 `reisli.pegelspitze.ch` (oder deine Domain) anhängen. Der Worker antwortet
-dann auch dort auf alles und `/api/travel-conditions` ohne weitere Routen-
-Konfiguration.
+dann auch dort auf alles und `/api/travel-conditions` ohne weitere
+Routen-Konfiguration.
 
 ### Lokal wie in Production testen
 
@@ -135,13 +135,13 @@ Damit testest du den genauen Produktions-Pfad: Worker plus Asset-Binding.
 
 ---
 
-## Alternative: API als komplett eigenständiger Worker (selten nötig)
+## Alternative: API als komplett eigenständiger Worker
 
-Wenn du den Wetter-Proxy bewusst getrennt vom Frontend deployen willst (eigene
-Subdomain, eigener Account, etc.):
+Wenn du den Wetter-Proxy bewusst getrennt vom Frontend deployen willst
+(eigene Subdomain, eigener Account, etc.):
 
 1. **Aus `wrangler.jsonc` im Root** den `main`-Eintrag entfernen und den
-   Worker-Eintry-Pfad nicht mehr setzen — dann wird im Hauptdeployment kein
+   Worker-Entry-Pfad nicht mehr setzen. Dann wird im Hauptdeployment kein
    Worker, sondern nur Static Assets ausgeliefert.
 
 2. **Separat deployen:**
@@ -157,7 +157,7 @@ Subdomain, eigener Account, etc.):
    `meine-domain.ch/api/travel-conditions` oder
    `<frontend-host>/api/travel-conditions` setzen.
 
-Im Standardfall ist das nicht nötig — die Workers-+-Assets-Variante oben
+Im Standardfall ist das nicht nötig. Die Workers-+-Assets-Variante oben
 reicht völlig.
 
 ---
@@ -166,19 +166,19 @@ reicht völlig.
 
 Vor jedem Push und nach jedem Deploy:
 
-- [ ] Kein Ortsname (Stadt / Land / Region) in `src/**`, `index.html`,
+- [ ] Kein Ortsname (Stadt, Land, Region) in `src/**`, `index.html`,
       `README.md`, `wrangler.jsonc` oder sonstigen ausgelieferten Dateien.
 - [ ] Keine Koordinaten oder Zeitzonen-Strings im Frontend.
 - [ ] Worker-Antwort enthält **nur** `daily`, `daily_units`, `note`,
-      `within_travel_window` — keine `latitude`, `longitude`, `timezone`,
+      `within_travel_window`, also keine `latitude`, `longitude`, `timezone`,
       `location`, `name`, `country`.
 - [ ] Secrets stehen ausschliesslich im Cloudflare-Dashboard
       (`SECRET_WEATHER_*`).
 - [ ] `dist/`, `node_modules/`, `.wrangler/`, `.dev.vars` sind nicht
       committed (`.gitignore` deckt das ab).
 
-Schneller Frontend-Check — nutze `scripts/audit-leaks.sh` (gitignored,
-enthält die konkreten Suchbegriffe nur lokal):
+Schneller Frontend-Check via `scripts/audit-leaks.sh` (gitignored, enthält
+die konkreten Suchbegriffe nur lokal):
 
 ```bash
 # Einmalig anlegen, nicht commiten:
@@ -190,8 +190,8 @@ cat > scripts/audit-leaks.sh <<'EOF'
 PATTERN='Stadtname|Region|Land|45.xxxx|7.xxxx|Europe/Xxx'
 grep -RInE "$PATTERN" src/ index.html README.md wrangler.jsonc \
   worker/index.js worker/wrangler.toml package.json 2>/dev/null \
-  && { echo "✗ LEAK gefunden"; exit 1; } \
-  || { echo "✓ sauber"; exit 0; }
+  && { echo "LEAK gefunden"; exit 1; } \
+  || { echo "sauber"; exit 0; }
 EOF
 chmod +x scripts/audit-leaks.sh
 ```
@@ -207,18 +207,18 @@ curl -s https://<host>/api/travel-conditions | jq 'keys'
 
 ## Sektionen der Website
 
-- **Hero** — «PV-Reisli 2026 · Es wird ernst!»
-- **Eckdaten** — Reisezeitraum, Treffpunkt, Rückkehr
-- **Countdown** — live bis 30.05.2026 07:45 Uhr Schweizer Zeit
-- **Reiseleitung** — Hakan &amp; Franz
-- **Wetter** — über `/api/travel-conditions`, stündliches Auto-Refresh,
+- **Hero**: «PV-Reisli 2026 · Es wird ernst!»
+- **Eckdaten**: Reisezeitraum, Treffpunkt, Rückkehr
+- **Countdown**: live bis 30.05.2026 07:45 Uhr Schweizer Zeit
+- **Reiseleitung**: Hakan und Franz
+- **Wetter**: über `/api/travel-conditions`, stündliches Auto-Refresh,
   manueller Aktualisieren-Button, neutrale Fallback-Prognose
-- **Dresscode** — inkl. stilisiertem PV-Polo (Inline-SVG)
-- **Packliste** — was muss mit
-- **Outdoor war Tarnung** — was darf zuhause bleiben
-- **Wichtig** — Treffpunkt, PV-Polo, weitere Infos, Erwartung
+- **Dresscode**: inklusive stilisiertem PV-Polo als Inline-SVG
+- **Packliste**: was muss mit
+- **Outdoor war Tarnung**: was darf zuhause bleiben
+- **Wichtig**: Treffpunkt, PV-Polo, weitere Infos, Erwartung
 
-## Lizenz / Nutzung
+## Lizenz und Nutzung
 
 Internes Projekt für den PV. Reproduktion nur mit Genehmigung der Reiseleitung
 und einem nachweisbar gepflegten Durst.

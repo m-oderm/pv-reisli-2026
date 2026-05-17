@@ -1,46 +1,57 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  CalendarDays,
-  Clock,
-  MapPin,
-  Train,
-  Users,
-  CloudSun,
-  Shirt,
-  Luggage,
-  Lock,
-  MessageCircle,
   Beer,
-  Mountain,
-  Tent,
-  Footprints,
-  Compass,
-  Umbrella,
-  WalletCards,
-  Smartphone,
-  Glasses,
-  CircleX,
-  Ticket,
-  Utensils,
-  Music,
   Building2,
-  RefreshCw,
+  CalendarDays,
+  CircleX,
+  Clock,
   CloudRain,
-  Sun,
+  CloudSun,
+  Compass,
+  Footprints,
+  Glasses,
   HelpCircle,
-  Sparkles,
-  ShieldCheck,
   IdCard,
-  Pill
+  Lock,
+  Luggage,
+  MapPin,
+  MessageCircle,
+  Mountain,
+  Music,
+  Pill,
+  RefreshCw,
+  ShieldCheck,
+  Shirt,
+  Smartphone,
+  Snowflake,
+  Sparkles,
+  Sun,
+  Tent,
+  Ticket,
+  Train,
+  Umbrella,
+  Users,
+  Utensils,
+  WalletCards
 } from 'lucide-react'
 
-/* -----------------------------------------------------------------
-   PV-Reisli 2026 — Einseiten-Reisewebsite
-   Reiseunternehmen: Pegelspitze Reisen
-   Zielort: bleibt streng geheim. Wird ausschliesslich serverseitig
-   verarbeitet (siehe worker/travel-conditions.js + Cloudflare Secrets).
------------------------------------------------------------------ */
+/*
+ * PV-Reisli 2026, Einseiten-Reisewebsite für Pegelspitze Reisen.
+ * Der Zielort bleibt geheim. Wetterdaten kommen aus worker/travel-conditions.js,
+ * die Koordinaten liegen ausschliesslich als Cloudflare Secrets vor.
+ */
+
+const MS_PER_SECOND = 1000
+const MS_PER_MINUTE = 60 * MS_PER_SECOND
+const MS_PER_HOUR = 60 * MS_PER_MINUTE
+const MS_PER_DAY = 24 * MS_PER_HOUR
+
+const NAV_OFFSET_PX = 72
+const HOURLY_REFRESH_MS = MS_PER_HOUR
+
+// 30.05.2026, 07:45 Uhr Europe/Zurich. Ende Mai gilt CEST, also UTC+2.
+const COUNTDOWN_TARGET_MS = new Date('2026-05-30T07:45:00+02:00').getTime()
 
 const NAV_ITEMS = [
   { id: 'eckdaten', label: 'Eckdaten' },
@@ -50,76 +61,145 @@ const NAV_ITEMS = [
   { id: 'dresscode', label: 'Dresscode' }
 ]
 
-// Zielzeit für den Countdown: 30.05.2026, 07:45 Uhr Europe/Zurich.
-// Schweiz ist Ende Mai in CEST (UTC+2), daher 07:45 +02:00 = 05:45 UTC.
-const TARGET_UTC = new Date('2026-05-30T07:45:00+02:00').getTime()
-
-// Reisedaten — bewusst hartkodiert, da im Konzept fix:
 const TRAVEL_DATES = ['2026-05-30', '2026-05-31', '2026-06-01', '2026-06-02']
 
-// Neutrale Ersatzprognose — keine Ortsangaben.
-const FALLBACK_DAILY = {
-  time: TRAVEL_DATES,
-  weather_code: [2, 2, 95, 2],
-  temperature_2m_max: [22, 23, 22, 22],
-  temperature_2m_min: [12, 13, 13, 12],
-  precipitation_probability_max: [25, 30, 55, 35]
-}
-
 const FALLBACK_PAYLOAD = {
-  daily: FALLBACK_DAILY,
-  note: 'Aktuell offline — neutrale Vorschau. Das Ziel bleibt geheim.',
-  __fallback: true
+  daily: {
+    time: TRAVEL_DATES,
+    weather_code: [2, 2, 95, 2],
+    temperature_2m_max: [22, 23, 22, 22],
+    temperature_2m_min: [12, 13, 13, 12],
+    precipitation_probability_max: [25, 30, 55, 35]
+  },
+  note: 'Aktuell offline. Neutrale Vorschau, das Ziel bleibt geheim.'
 }
 
-/* ---------- Hilfsfunktionen ---------- */
+const WEATHER_FALLBACK_INFO = { label: 'wechselhaft', Icon: CloudSun }
 
-function useCountdown(targetTs) {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(id)
-  }, [])
-  const diff = Math.max(0, targetTs - now)
-  const days = Math.floor(diff / 86_400_000)
-  const hours = Math.floor((diff % 86_400_000) / 3_600_000)
-  const minutes = Math.floor((diff % 3_600_000) / 60_000)
-  const seconds = Math.floor((diff % 60_000) / 1000)
-  return { days, hours, minutes, seconds, done: diff === 0 }
+// Open-Meteo WMO Wetter-Codes auf passende Icons und Kurzlabels.
+const WEATHER_CODE_TABLE = {
+  0: { label: 'klar', Icon: Sun },
+  1: { label: 'teils sonnig', Icon: CloudSun },
+  2: { label: 'teils sonnig', Icon: CloudSun },
+  3: { label: 'bewölkt', Icon: CloudSun },
+  45: { label: 'neblig', Icon: CloudSun },
+  48: { label: 'neblig', Icon: CloudSun },
+  51: { label: 'Niesel', Icon: CloudRain },
+  53: { label: 'Niesel', Icon: CloudRain },
+  55: { label: 'Niesel', Icon: CloudRain },
+  56: { label: 'Niesel', Icon: CloudRain },
+  57: { label: 'Niesel', Icon: CloudRain },
+  61: { label: 'Regen', Icon: CloudRain },
+  63: { label: 'Regen', Icon: CloudRain },
+  65: { label: 'Regen', Icon: CloudRain },
+  66: { label: 'Regen', Icon: CloudRain },
+  67: { label: 'Regen', Icon: CloudRain },
+  71: { label: 'Schnee', Icon: Snowflake },
+  73: { label: 'Schnee', Icon: Snowflake },
+  75: { label: 'Schnee', Icon: Snowflake },
+  77: { label: 'Schnee', Icon: Snowflake },
+  80: { label: 'Regen', Icon: CloudRain },
+  81: { label: 'Regen', Icon: CloudRain },
+  82: { label: 'Regen', Icon: CloudRain },
+  85: { label: 'Schnee', Icon: Snowflake },
+  86: { label: 'Schnee', Icon: Snowflake },
+  95: { label: 'Gewitter möglich', Icon: Umbrella },
+  96: { label: 'Gewitter möglich', Icon: Umbrella },
+  99: { label: 'Gewitter möglich', Icon: Umbrella }
+}
+
+/* ----- Hilfsfunktionen ------------------------------------------- */
+
+function splitMs(ms) {
+  return {
+    days: Math.floor(ms / MS_PER_DAY),
+    hours: Math.floor((ms % MS_PER_DAY) / MS_PER_HOUR),
+    minutes: Math.floor((ms % MS_PER_HOUR) / MS_PER_MINUTE),
+    seconds: Math.floor((ms % MS_PER_MINUTE) / MS_PER_SECOND)
+  }
 }
 
 function formatGermanDay(iso) {
-  // iso = "2026-05-30"
-  const [y, m, d] = iso.split('-').map(Number)
-  const date = new Date(Date.UTC(y, m - 1, d))
+  const [year, month, day] = iso.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
   const weekday = date.toLocaleDateString('de-CH', { weekday: 'short', timeZone: 'UTC' })
-  return `${weekday}, ${String(d).padStart(2, '0')}.${String(m).padStart(2, '0')}.`
+  return `${weekday}, ${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.`
 }
 
 function weatherCodeToInfo(code) {
-  // Open-Meteo WMO Codes — kompakte deutsche Beschriftung
-  if (code === 0) return { label: 'klar', Icon: Sun }
-  if ([1, 2].includes(code)) return { label: 'teils sonnig', Icon: CloudSun }
-  if (code === 3) return { label: 'bewölkt', Icon: CloudSun }
-  if ([45, 48].includes(code)) return { label: 'neblig', Icon: CloudSun }
-  if ([51, 53, 55, 56, 57].includes(code)) return { label: 'Niesel', Icon: CloudRain }
-  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { label: 'Regen', Icon: CloudRain }
-  if ([71, 73, 75, 77, 85, 86].includes(code)) return { label: 'Schnee', Icon: CloudRain }
-  if ([95, 96, 99].includes(code)) return { label: 'Gewitter möglich', Icon: Umbrella }
-  return { label: 'wechselhaft', Icon: CloudSun }
+  return WEATHER_CODE_TABLE[code] ?? WEATHER_FALLBACK_INFO
 }
 
 function smoothScrollTo(id) {
   const el = document.getElementById(id)
   if (!el) return
-  const top = el.getBoundingClientRect().top + window.scrollY - 72
+  const top = el.getBoundingClientRect().top + window.scrollY - NAV_OFFSET_PX
   window.scrollTo({ top, behavior: 'smooth' })
 }
 
-/* ---------- Komponenten ---------- */
+function deriveDays(data) {
+  if (!data?.daily?.time) return []
+  const all = data.daily.time.map((iso, idx) => ({
+    iso,
+    label: formatGermanDay(iso),
+    info: weatherCodeToInfo(data.daily.weather_code?.[idx] ?? 2),
+    max: data.daily.temperature_2m_max?.[idx],
+    min: data.daily.temperature_2m_min?.[idx],
+    rain: data.daily.precipitation_probability_max?.[idx]
+  }))
+  // Solange Reisetage im Forecast auftauchen, blenden wir den Rest aus.
+  const trip = all.filter((day) => TRAVEL_DATES.includes(day.iso))
+  return trip.length > 0 ? trip : all
+}
+
+/* ----- Hooks ----------------------------------------------------- */
+
+function useCountdown(targetTs) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), MS_PER_SECOND)
+    return () => clearInterval(id)
+  }, [])
+  const diff = Math.max(0, targetTs - now)
+  return { ...splitMs(diff), done: diff === 0 }
+}
+
+function useTravelConditions() {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [isFallback, setIsFallback] = useState(false)
+  const [updatedAt, setUpdatedAt] = useState(null)
+
+  const reload = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/travel-conditions', { cache: 'no-store' })
+      if (!res.ok) throw new Error(`status ${res.status}`)
+      const json = await res.json()
+      if (!json?.daily) throw new Error('no daily payload')
+      setData(json)
+      setIsFallback(false)
+    } catch {
+      setData(FALLBACK_PAYLOAD)
+      setIsFallback(true)
+    } finally {
+      setUpdatedAt(new Date())
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    reload()
+    const id = setInterval(reload, HOURLY_REFRESH_MS)
+    return () => clearInterval(id)
+  }, [reload])
+
+  return { data, loading, isFallback, updatedAt, reload }
+}
+
+/* ----- Komponenten ----------------------------------------------- */
 
 function BrandLogo({ size = 44 }) {
-  // Pegelspitze-Reisen Logo: rund, Berge + Kompass + Bierkrug.
   return (
     <svg
       width={size}
@@ -137,10 +217,8 @@ function BrandLogo({ size = 44 }) {
       </defs>
       <circle cx="40" cy="40" r="37" fill="url(#discGrad)" stroke="#b88a3b" strokeWidth="2.5" />
       <circle cx="40" cy="40" r="32" fill="none" stroke="#b88a3b" strokeOpacity="0.45" strokeDasharray="2 3" />
-      {/* Berge */}
       <path d="M14 54 L30 32 L40 44 L52 26 L66 54 Z" fill="#163d34" stroke="#f7ecd1" strokeWidth="1.2" strokeLinejoin="round" />
       <path d="M30 32 L36 39 L40 44" fill="none" stroke="#f7ecd1" strokeOpacity="0.6" strokeWidth="1" />
-      {/* Sonne / Kompass-Stern */}
       <g transform="translate(40 22)">
         <circle r="3.2" fill="#b88a3b" />
         <g stroke="#b88a3b" strokeWidth="1.4" strokeLinecap="round">
@@ -150,7 +228,6 @@ function BrandLogo({ size = 44 }) {
           <line x1="7" y1="0" x2="4.5" y2="0" />
         </g>
       </g>
-      {/* Bierkrug */}
       <g transform="translate(40 58)">
         <rect x="-7" y="-7" width="11" height="12" rx="1.5" fill="#f7ecd1" stroke="#132238" strokeWidth="1.2" />
         <rect x="-7" y="-7" width="11" height="3.5" fill="#fff8e1" stroke="#132238" strokeWidth="1.2" />
@@ -162,7 +239,7 @@ function BrandLogo({ size = 44 }) {
 
 function Nav() {
   const [open, setOpen] = useState(false)
-  const click = (id) => {
+  const handleClick = (id) => {
     setOpen(false)
     smoothScrollTo(id)
   }
@@ -186,7 +263,7 @@ function Nav() {
         </button>
         <nav className={`nav-links ${open ? 'open' : ''}`}>
           {NAV_ITEMS.map((item) => (
-            <button key={item.id} onClick={() => click(item.id)}>
+            <button key={item.id} onClick={() => handleClick(item.id)}>
               {item.label}
             </button>
           ))}
@@ -236,7 +313,7 @@ function Hero() {
           </div>
           <div className="qf">
             <CalendarDays size={18} />
-            <span>30.05. – 02.06.2026</span>
+            <span>30.05. bis 02.06.2026</span>
           </div>
           <div className="qf">
             <Lock size={18} />
@@ -274,21 +351,22 @@ function Card({ children, className = '', delay = 0 }) {
   )
 }
 
+const ECKDATEN_ROWS = [
+  { Icon: CalendarDays, label: 'Reisezeitraum', value: 'Sa, 30.05.2026 bis Di, 02.06.2026' },
+  { Icon: Clock, label: 'Treffpunkt', value: 'Sa, 30.05.2026 · 07:45 Uhr' },
+  { Icon: MapPin, label: 'Ort', value: 'Bahnhof Zug' },
+  { Icon: Train, label: 'Rückkehr', value: 'Di, 02.06.2026 · ca. 18:00 Uhr in Zug' },
+  { Icon: Users, label: 'Mannschaft', value: '6 Mann, ein Plan' },
+  { Icon: Lock, label: 'Ziel', value: 'Bleibt geheim. Vertraut der Reiseleitung.' }
+]
+
 function Eckdaten() {
-  const rows = [
-    { Icon: CalendarDays, label: 'Reisezeitraum', value: 'Sa, 30.05.2026 – Di, 02.06.2026' },
-    { Icon: Clock, label: 'Treffpunkt', value: 'Sa, 30.05.2026 · 07:45 Uhr' },
-    { Icon: MapPin, label: 'Ort', value: 'Bahnhof Zug' },
-    { Icon: Train, label: 'Rückkehr', value: 'Di, 02.06.2026 · ca. 18:00 Uhr in Zug' },
-    { Icon: Users, label: 'Mannschaft', value: '6 Mann, ein Plan' },
-    { Icon: Lock, label: 'Ziel', value: 'Bleibt geheim. Vertraut der Reiseleitung.' }
-  ]
   return (
     <section id="eckdaten" className="section">
       <SectionTitle icon={Ticket} kicker="Mission Briefing" title="Eckdaten" />
       <Card className="card-cream">
         <ul className="data-list">
-          {rows.map(({ Icon, label, value }) => (
+          {ECKDATEN_ROWS.map(({ Icon, label, value }) => (
             <li key={label}>
               <span className="data-icon"><Icon size={18} /></span>
               <span className="data-label">{label}</span>
@@ -301,67 +379,67 @@ function Eckdaten() {
   )
 }
 
+const COUNTDOWN_BLOCKS = ['Tage', 'Stunden', 'Minuten', 'Sekunden']
+
 function CountdownSection() {
-  const { days, hours, minutes, seconds, done } = useCountdown(TARGET_UTC)
-  const blocks = [
-    { v: days, l: 'Tage' },
-    { v: hours, l: 'Stunden' },
-    { v: minutes, l: 'Minuten' },
-    { v: seconds, l: 'Sekunden' }
-  ]
+  const time = useCountdown(COUNTDOWN_TARGET_MS)
   return (
     <section id="countdown" className="section">
       <SectionTitle icon={Clock} kicker="T minus" title="Countdown bis Abmarsch" />
       <Card className="card-navy">
-        {done ? (
+        {time.done ? (
           <p className="countdown-done">
             <Sparkles size={20} /> Es ist soweit. Pegelspitze in Sicht.
           </p>
         ) : (
           <div className="countdown-grid">
-            {blocks.map(({ v, l }) => (
-              <div key={l} className="cd-block">
-                <div className="cd-value">{String(v).padStart(2, '0')}</div>
-                <div className="cd-label">{l}</div>
-              </div>
-            ))}
+            {COUNTDOWN_BLOCKS.map((label) => {
+              const key = label.toLowerCase()
+              return (
+                <div key={label} className="cd-block">
+                  <div className="cd-value">{String(time[key]).padStart(2, '0')}</div>
+                  <div className="cd-label">{label}</div>
+                </div>
+              )
+            })}
           </div>
         )}
         <p className="countdown-foot">
-          <Clock size={14} /> Zielzeit: 30.05.2026 · 07:45 Uhr (Schweizer Zeit)
+          <Clock size={14} /> Zielzeit: 30.05.2026 · 07:45 Uhr · Schweizer Zeit
         </p>
       </Card>
     </section>
   )
 }
 
+const CREW = [
+  {
+    name: 'Marc Odermatt',
+    nick: 'Hakan',
+    role: 'Zuständig für Überblick, Tarnung und moralische Ausreden.'
+  },
+  {
+    name: 'Timon Burkart',
+    nick: 'Franz',
+    role: 'Zuständig für Charme, Chaoskontrolle und gepflegten Durst.'
+  }
+]
+
 function Reiseleitung() {
-  const crew = [
-    {
-      name: 'Marc Odermatt',
-      nick: 'Hakan',
-      role: 'Zuständig für Überblick, Tarnung und moralische Ausreden.'
-    },
-    {
-      name: 'Timon Burkart',
-      nick: 'Franz',
-      role: 'Zuständig für Charme, Chaoskontrolle und gepflegten Durst.'
-    }
-  ]
   return (
     <section id="reiseleitung" className="section">
       <SectionTitle icon={Users} kicker="Im Einsatz" title="Reiseleitung" />
       <div className="grid-2">
-        {crew.map((p, i) => (
-          <Card key={p.nick} delay={i * 0.1}>
+        {CREW.map((person, idx) => (
+          <Card key={person.nick} delay={idx * 0.1}>
             <div className="leader">
               <div className="leader-avatar" aria-hidden="true">
                 <Compass size={28} />
               </div>
               <div>
-                <h3 className="leader-name">{p.name}</h3>
-                <p className="leader-nick">«{p.nick}»</p>
-                <p className="leader-role">{p.role}</p>
+                <h3 className="leader-name">{person.name}</h3>
+                <p className="leader-nick">«{person.nick}»</p>
+                <p className="leader-role">{person.role}</p>
               </div>
             </div>
           </Card>
@@ -371,67 +449,42 @@ function Reiseleitung() {
   )
 }
 
+function WeatherDay({ day }) {
+  const Icon = day.info.Icon
+  return (
+    <div className="weather-day">
+      <div className="wd-head">
+        <span className="wd-day">{day.label}</span>
+        <Icon size={22} />
+      </div>
+      <div className="wd-temp">
+        <span className="wd-max">{Math.round(day.max ?? 0)}°</span>
+        <span className="wd-min">/ {Math.round(day.min ?? 0)}°</span>
+      </div>
+      <div className="wd-label">{day.info.label}</div>
+      <div className="wd-rain">
+        <Umbrella size={14} /> {Math.round(day.rain ?? 0)} %
+      </div>
+    </div>
+  )
+}
+
 function Wetter() {
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [usingFallback, setUsingFallback] = useState(false)
-  const [updatedAt, setUpdatedAt] = useState(null)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/travel-conditions', { cache: 'no-store' })
-      if (!res.ok) throw new Error('bad status')
-      const json = await res.json()
-      if (!json || !json.daily) throw new Error('no daily')
-      setData(json)
-      setUsingFallback(false)
-    } catch (err) {
-      setData(FALLBACK_PAYLOAD)
-      setUsingFallback(true)
-    } finally {
-      setUpdatedAt(new Date())
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    load()
-    const id = setInterval(load, 60 * 60 * 1000) // stündlich
-    return () => clearInterval(id)
-  }, [load])
-
-  const days = useMemo(() => {
-    if (!data || !data.daily || !data.daily.time) return []
-    return data.daily.time.map((iso, idx) => {
-      const code = data.daily.weather_code?.[idx]
-      const info = weatherCodeToInfo(code ?? 2)
-      return {
-        iso,
-        label: formatGermanDay(iso),
-        info,
-        max: data.daily.temperature_2m_max?.[idx],
-        min: data.daily.temperature_2m_min?.[idx],
-        rain: data.daily.precipitation_probability_max?.[idx]
-      }
-    })
-  }, [data])
-
-  // Im Frontend zeigen wir nur die Reisetage an, falls vorhanden — sonst alles.
-  const visibleDays = useMemo(() => {
-    const filtered = days.filter((d) => TRAVEL_DATES.includes(d.iso))
-    return filtered.length > 0 ? filtered : days
-  }, [days])
+  const { data, loading, isFallback, updatedAt, reload } = useTravelConditions()
+  const visibleDays = useMemo(() => deriveDays(data), [data])
 
   return (
     <section id="wetter" className="section">
       <SectionTitle icon={CloudSun} kicker="Wetterlage am Zielort" title="Travel Conditions" />
       <Card className="card-cream">
         <div className="weather-head">
-          <p className="weather-note">
-            {data?.note ?? 'Lade aktuelle Daten…'}
-          </p>
-          <button className="btn-ghost" onClick={load} disabled={loading} aria-label="Wetter aktualisieren">
+          <p className="weather-note">{data?.note ?? 'Lade Wetter…'}</p>
+          <button
+            className="btn-ghost"
+            onClick={reload}
+            disabled={loading}
+            aria-label="Wetter aktualisieren"
+          >
             <RefreshCw size={16} className={loading ? 'spin' : ''} />
             Aktualisieren
           </button>
@@ -439,39 +492,23 @@ function Wetter() {
 
         <AnimatePresence mode="popLayout">
           <motion.div
-            key={usingFallback ? 'fb' : 'live'}
+            key={isFallback ? 'fb' : 'live'}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             className="weather-grid"
           >
             {visibleDays.length === 0 && !loading && (
-              <p className="muted">Keine Vorhersagedaten verfügbar.</p>
+              <p className="muted">Noch keine Vorhersage.</p>
             )}
-            {visibleDays.map((d) => {
-              const Icon = d.info.Icon
-              return (
-                <div key={d.iso} className="weather-day">
-                  <div className="wd-head">
-                    <span className="wd-day">{d.label}</span>
-                    <Icon size={22} />
-                  </div>
-                  <div className="wd-temp">
-                    <span className="wd-max">{Math.round(d.max ?? 0)}°</span>
-                    <span className="wd-min">/ {Math.round(d.min ?? 0)}°</span>
-                  </div>
-                  <div className="wd-label">{d.info.label}</div>
-                  <div className="wd-rain">
-                    <Umbrella size={14} /> {Math.round(d.rain ?? 0)} %
-                  </div>
-                </div>
-              )
-            })}
+            {visibleDays.map((day) => (
+              <WeatherDay key={day.iso} day={day} />
+            ))}
           </motion.div>
         </AnimatePresence>
 
         <div className="weather-foot">
-          <span><Lock size={12} /> Standort wird nicht angezeigt.</span>
+          <span><Lock size={12} /> Standort bleibt verborgen.</span>
           {updatedAt && (
             <span className="muted">
               Stand: {updatedAt.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })} Uhr
@@ -484,9 +521,6 @@ function Wetter() {
 }
 
 function PoloGraphic() {
-  // Stilisiertes PV-Polo nach Vorlage des realen Vereinspolos:
-  // dunkelblau, weisses PV-Monogramm in feiner Kontur auf der linken Brust,
-  // zwei dunkle Knöpfe, keine Goldakzente.
   return (
     <svg
       viewBox="0 0 200 240"
@@ -500,7 +534,6 @@ function PoloGraphic() {
           <stop offset="55%" stopColor="#10294a" />
           <stop offset="100%" stopColor="#0a1d34" />
         </linearGradient>
-        {/* Subtile Piqué-Textur */}
         <pattern id="pique" patternUnits="userSpaceOnUse" width="3" height="3">
           <rect width="3" height="3" fill="url(#poloGrad)" />
           <circle cx="0.5" cy="0.5" r="0.35" fill="#06101e" opacity="0.55" />
@@ -508,7 +541,6 @@ function PoloGraphic() {
         </pattern>
       </defs>
 
-      {/* Hauptkörper + Ärmel */}
       <path
         d="
           M60 42
@@ -535,14 +567,12 @@ function PoloGraphic() {
         strokeLinejoin="round"
       />
 
-      {/* Kragen (Strickware) */}
       <path
         d="M76 52 L100 78 L124 52 L116 47 L100 65 L84 47 Z"
         fill="#08182c"
         stroke="#1a3a60"
         strokeWidth="0.6"
       />
-      {/* Strick-Rippen — angedeutet */}
       <g stroke="#1a3a60" strokeWidth="0.25" opacity="0.7">
         <line x1="80" y1="51" x2="82.5" y2="58" />
         <line x1="86" y1="51" x2="88.5" y2="60" />
@@ -552,12 +582,10 @@ function PoloGraphic() {
         <line x1="117.5" y1="58" x2="120" y2="51" />
       </g>
 
-      {/* Knopfleiste */}
       <rect x="96" y="65" width="8" height="50" fill="#08182c" stroke="#1a3a60" strokeWidth="0.4" />
       <line x1="96.5" y1="65" x2="96.5" y2="115" stroke="#1a3a60" strokeWidth="0.2" strokeDasharray="1 1" />
       <line x1="103.5" y1="65" x2="103.5" y2="115" stroke="#1a3a60" strokeWidth="0.2" strokeDasharray="1 1" />
 
-      {/* Zwei dunkle Knöpfe mit Loch-Andeutung */}
       {[78, 100].map((cy) => (
         <g key={cy}>
           <circle cx="100" cy={cy} r="2.2" fill="#06101e" stroke="#1a3a60" strokeWidth="0.4" />
@@ -568,7 +596,6 @@ function PoloGraphic() {
         </g>
       ))}
 
-      {/* PV-Monogramm — obere rechte Brust, weisse Kontur (Stickerei-Look) */}
       <g transform="translate(128 118)">
         <text
           textAnchor="middle"
@@ -591,13 +618,14 @@ function PoloGraphic() {
   )
 }
 
+const DRESSCODE_POINTS = [
+  { Icon: Shirt, text: 'PV-Polo ist Pflicht.' },
+  { Icon: Shirt, text: 'Ein Hemd kann nicht schaden.' },
+  { Icon: ShieldCheck, text: 'Dunkel, würdevoll, bereit für grosse Taten.' },
+  { Icon: Beer, text: 'Man weiss nie, wann aus «nur schnell eins» ein offizieller Programmpunkt wird.' }
+]
+
 function Dresscode() {
-  const points = [
-    { Icon: Shirt, text: 'PV-Polo ist Pflicht.' },
-    { Icon: Shirt, text: 'Ein Hemd kann nicht schaden.' },
-    { Icon: ShieldCheck, text: 'Dunkel, würdevoll, bereit für grosse Taten.' },
-    { Icon: Beer, text: 'Man weiss nie, wann aus «nur schnell eins» ein offizieller Programmpunkt wird.' }
-  ]
   return (
     <section id="dresscode" className="section">
       <SectionTitle icon={Shirt} kicker="Uniform-Vorgabe" title="Dresscode" />
@@ -608,8 +636,8 @@ function Dresscode() {
             <div className="polo-caption">Das offizielle PV-Polo</div>
           </div>
           <ul className="bullets">
-            {points.map(({ Icon, text }, i) => (
-              <li key={i}>
+            {DRESSCODE_POINTS.map(({ Icon, text }) => (
+              <li key={text}>
                 <Icon size={18} /> <span>{text}</span>
               </li>
             ))}
@@ -620,25 +648,26 @@ function Dresscode() {
   )
 }
 
+const PACKLIST_ITEMS = [
+  { Icon: IdCard, text: 'ID oder Reisepass' },
+  { Icon: WalletCards, text: 'Portemonnaie, Karte, etwas Bargeld' },
+  { Icon: Smartphone, text: 'Handy, Ladegerät, Powerbank' },
+  { Icon: Shirt, text: 'PV-Polo' },
+  { Icon: Shirt, text: 'Ein Hemd oder Ausgangs-Outfit' },
+  { Icon: Footprints, text: 'Bequeme Schuhe' },
+  { Icon: Umbrella, text: 'Leichte Jacke oder Regenschutz' },
+  { Icon: Glasses, text: 'Sonnenbrille' },
+  { Icon: Pill, text: 'Toilettenartikel und Medikamente' }
+]
+
 function Packliste() {
-  const items = [
-    { Icon: IdCard, text: 'ID oder Reisepass' },
-    { Icon: WalletCards, text: 'Portemonnaie, Karte, etwas Bargeld' },
-    { Icon: Smartphone, text: 'Handy, Ladegerät, Powerbank' },
-    { Icon: Shirt, text: 'PV-Polo' },
-    { Icon: Shirt, text: 'Ein Hemd oder Ausgangs-Outfit' },
-    { Icon: Footprints, text: 'Bequeme Schuhe' },
-    { Icon: Umbrella, text: 'Leichte Jacke oder Regenschutz' },
-    { Icon: Glasses, text: 'Sonnenbrille' },
-    { Icon: Pill, text: 'Toilettenartikel und Medikamente' }
-  ]
   return (
     <section id="packliste" className="section">
       <SectionTitle icon={Luggage} kicker="Was muss mit" title="Packliste" />
       <Card className="card-cream">
         <ul className="packlist">
-          {items.map(({ Icon, text }, i) => (
-            <li key={i}>
+          {PACKLIST_ITEMS.map(({ Icon, text }) => (
+            <li key={text}>
               <span className="check" aria-hidden="true" />
               <Icon size={18} />
               <span>{text}</span>
@@ -650,14 +679,15 @@ function Packliste() {
   )
 }
 
+const LEAVE_AT_HOME = [
+  { Icon: Mountain, text: 'Wanderschuhe' },
+  { Icon: Tent, text: 'Zelt' },
+  { Icon: Footprints, text: 'Trekkingstöcke' },
+  { Icon: Tent, text: 'Schlafsack' },
+  { Icon: Compass, text: 'Survival-Ausrüstung' }
+]
+
 function ZuhauseLassen() {
-  const items = [
-    { Icon: Mountain, text: 'Wanderschuhe' },
-    { Icon: Tent, text: 'Zelt' },
-    { Icon: Footprints, text: 'Trekkingstöcke' },
-    { Icon: Tent, text: 'Schlafsack' },
-    { Icon: Compass, text: 'Survival-Ausrüstung' }
-  ]
   return (
     <section id="zuhause" className="section">
       <SectionTitle icon={CircleX} kicker="Kann zuhause bleiben" title="Outdoor war Tarnung" />
@@ -666,8 +696,8 @@ function ZuhauseLassen() {
           Die falsche Fährte war Absicht. Die Wanderschuhe dürfen sich ausruhen.
         </p>
         <ul className="strikelist">
-          {items.map(({ Icon, text }, i) => (
-            <li key={i}>
+          {LEAVE_AT_HOME.map(({ Icon, text }) => (
+            <li key={text}>
               <Icon size={18} />
               <span>{text}</span>
               <CircleX size={16} className="strike-x" />
@@ -682,7 +712,7 @@ function ZuhauseLassen() {
 function Wichtig() {
   return (
     <section id="wichtig" className="section">
-      <SectionTitle icon={MessageCircle} kicker="Letzte Worte vor dem Abmarsch" title="Wichtig" />
+      <SectionTitle icon={MessageCircle} kicker="Kurz vor Abmarsch" title="Wichtig" />
       <div className="grid-2">
         <Card className="card-green">
           <div className="kvline">
@@ -690,7 +720,7 @@ function Wichtig() {
             <div>
               <h3>Treffpunkt</h3>
               <p>Samstag, 30.05.2026 · 07:45 Uhr · Bahnhof Zug</p>
-              <p className="muted">Pünktlich. Bitte nicht hetzen — aber auch nicht trödeln.</p>
+              <p className="muted">Pünktlich. Bitte nicht hetzen, aber auch nicht trödeln.</p>
             </div>
           </div>
         </Card>
@@ -720,7 +750,9 @@ function Wichtig() {
             <div>
               <h3>Erwartung</h3>
               <p>Stil, Humor und solide Durstplanung.</p>
-              <p className="muted"><Utensils size={12} /> Essen, <Music size={12} /> Musik, <Building2 size={12} /> Kultur — in dieser Reihenfolge verhandelbar.</p>
+              <p className="muted">
+                <Utensils size={12} /> Essen, <Music size={12} /> Musik, <Building2 size={12} /> Kultur, in dieser Reihenfolge verhandelbar.
+              </p>
             </div>
           </div>
         </Card>

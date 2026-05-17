@@ -6,9 +6,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // Lokales Dev-Proxy: leitet /api/* an einen lokal laufenden Worker weiter
-      // (z. B. `npx wrangler dev worker/travel-conditions.js`).
-      // Im Production-Build greift die Pages/Worker-Route.
+      // Im Dev leitet Vite /api/* an einen separat laufenden Worker weiter,
+      // z. B. via `npx wrangler dev worker/travel-conditions.js`. In Production
+      // übernimmt die Worker-Route aus wrangler.jsonc.
       '/api': {
         target: 'http://127.0.0.1:8787',
         changeOrigin: true
