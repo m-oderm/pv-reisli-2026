@@ -719,7 +719,7 @@ function Wichtig() {
             <Beer size={22} />
             <div>
               <h3>Erwartung</h3>
-              <p>Stil, Schalk und solide Durstplanung.</p>
+              <p>Stil, Humor und solide Durstplanung.</p>
               <p className="muted"><Utensils size={12} /> Essen, <Music size={12} /> Musik, <Building2 size={12} /> Kultur — in dieser Reihenfolge verhandelbar.</p>
             </div>
           </div>
@@ -737,7 +737,7 @@ function Footer() {
           <BrandLogo size={48} />
           <div>
             <p className="footer-name">Pegelspitze Reisen</p>
-            <p className="footer-claim">Mit Stil, Schalk und solider Durstplanung</p>
+            <p className="footer-claim">Mit Stil, Humor und solider Durstplanung</p>
           </div>
         </div>
         <p className="footer-tag">
