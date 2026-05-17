@@ -81,7 +81,7 @@ export default {
     const { daily, sourcesPerDay } = mergeDaily(om.daily, mnByDate)
 
     const sourcesAvailable = mn ? 2 : 1
-    const note = composeNote(withinForecastWindow, sourcesAvailable)
+    const note = composeNote(withinForecastWindow)
 
     return jsonResponse(
       {
@@ -262,12 +262,11 @@ function pickUnits(units) {
   return out
 }
 
-function composeNote(withinForecastWindow, sourcesAvailable) {
-  const ensemble = sourcesAvailable === 2 ? 'Mittel aus 2 Modellen' : '1 Modell aktiv'
+function composeNote(withinForecastWindow) {
   if (withinForecastWindow) {
-    return `Live Forecast aktiv · ${ensemble}. Das Ziel bleibt geheim.`
+    return 'Live Forecast aktiv. Das Ziel bleibt geheim.'
   }
-  return `Live Forecast wird tagesweise verfügbar · ${ensemble}. Das Ziel bleibt geheim.`
+  return 'Live Forecast wird tagesweise verfügbar. Das Ziel bleibt geheim.'
 }
 
 function jsonResponse(data, status = 200, extraHeaders = {}) {
