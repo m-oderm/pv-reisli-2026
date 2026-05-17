@@ -156,11 +156,20 @@ function deriveDays(data) {
     info: weatherCodeToInfo(data.daily.weather_code?.[idx] ?? 2),
     max: data.daily.temperature_2m_max?.[idx],
     min: data.daily.temperature_2m_min?.[idx],
-    rain: data.daily.precipitation_probability_max?.[idx]
+    rain: data.daily.precipitation_probability_max?.[idx],
+    confidence: data.confidence_per_day?.[idx] ?? null
   }))
   // Solange Reisetage im Forecast auftauchen, blenden wir den Rest aus.
   const trip = all.filter((day) => TRAVEL_DATES.includes(day.iso))
   return trip.length > 0 ? trip : all
+}
+
+function confidenceLabel(value) {
+  if (value == null) return null
+  if (value >= 80) return 'hoch'
+  if (value >= 60) return 'mittel'
+  if (value >= 45) return 'tief'
+  return 'sehr tief'
 }
 
 /* ----- Hooks ----------------------------------------------------- */
@@ -490,6 +499,27 @@ function Reiseleitung() {
   )
 }
 
+function ConfidenceMeter({ value }) {
+  if (value == null) return null
+  const filled = Math.max(1, Math.min(5, Math.round(value / 20)))
+  const label = confidenceLabel(value)
+  return (
+    <div
+      className={`wd-confidence is-${label?.replace(' ', '-')}`}
+      title={`Modell-Vertrauen für diesen Tag: ${value} %`}
+    >
+      <span className="wd-conf-dots" aria-hidden="true">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <span key={n} className={`wd-conf-dot ${n <= filled ? 'is-on' : ''}`} />
+        ))}
+      </span>
+      <span className="wd-conf-label">
+        Vertrauen: <strong>{label}</strong>
+      </span>
+    </div>
+  )
+}
+
 function WeatherDay({ day }) {
   const Icon = day.info.Icon
   return (
@@ -506,6 +536,7 @@ function WeatherDay({ day }) {
       <div className="wd-rain">
         <Umbrella size={14} /> {Math.round(day.rain ?? 0)} %
       </div>
+      <ConfidenceMeter value={day.confidence} />
     </div>
   )
 }

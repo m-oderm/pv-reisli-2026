@@ -88,7 +88,7 @@ export default {
     }
 
     const mnByDate = mn ? metNorwayToDaily(mn, tz) : null
-    const { daily, sourcesPerDay } = mergeDaily(om.daily, mnByDate)
+    const { daily, sourcesPerDay, confidencePerDay } = mergeDaily(om.daily, mnByDate, new Date())
 
     return jsonResponse(
       {
@@ -97,6 +97,7 @@ export default {
         within_travel_window: useTripRange,
         sources_count: mn ? 2 : 1,
         sources_per_day: sourcesPerDay,
+        confidence_per_day: confidencePerDay,
         note: composeNote(useTripRange)
       },
       200,
@@ -226,9 +227,10 @@ function localDateAndHour(moment, tz) {
  * Mittelt die Min/Max-Temperaturen beider Quellen, sofern beide für einen
  * Tag Werte liefern. Weather-Code und Niederschlagswahrscheinlichkeit
  * bleiben Open-Meteo überlassen, da Met Norway in diesem Forecast-Horizont
- * keinen vergleichbaren Datentyp bietet.
+ * keinen vergleichbaren Datentyp bietet. Zusätzlich wird pro Tag eine
+ * Confidence-Schätzung gerechnet, siehe `estimateConfidence`.
  */
-function mergeDaily(omDaily, mnByDate) {
+function mergeDaily(omDaily, mnByDate, today) {
   const time = Array.isArray(omDaily?.time) ? omDaily.time : []
   const out = {
     time: [...time],
@@ -238,12 +240,13 @@ function mergeDaily(omDaily, mnByDate) {
     precipitation_probability_max: truncate(omDaily?.precipitation_probability_max, time.length)
   }
   const sourcesPerDay = []
+  const confidencePerDay = []
 
   for (let i = 0; i < time.length; i++) {
     const date = time[i]
     const omMax = numberAt(omDaily?.temperature_2m_max, i)
     const omMin = numberAt(omDaily?.temperature_2m_min, i)
-    const mnDay = mnByDate?.get(date)
+    const mnDay = mnByDate?.get(date) ?? null
 
     if (mnDay && omMax !== null && omMin !== null) {
       out.temperature_2m_max.push(roundOneDecimal((omMax + mnDay.max) / 2))
@@ -254,9 +257,44 @@ function mergeDaily(omDaily, mnByDate) {
       out.temperature_2m_min.push(omMin)
       sourcesPerDay.push(1)
     }
+
+    confidencePerDay.push(estimateConfidence({ date, today, omMax, omMin, mnDay }))
   }
 
-  return { daily: out, sourcesPerDay }
+  return { daily: out, sourcesPerDay, confidencePerDay }
+}
+
+/**
+ * Liefert einen Confidence-Wert in Prozent für einen einzelnen Forecast-Tag.
+ *
+ * Zwei Bausteine:
+ *   * Basis aus der Entfernung in Tagen zum Heute. Wettermodelle verlieren
+ *     pro Tag rund 4 Prozentpunkte Trefferquote (vereinfachte Annäherung an
+ *     gängige ECMWF-Skill-Scores).
+ *   * Anpassung aus dem Ensemble-Spread, sofern Open-Meteo und Met Norway
+ *     beide für den Tag Temperaturen liefern. Kleiner Spread = Modelle sind
+ *     sich einig, höheres Vertrauen. Grosser Spread = unsicher.
+ *
+ * Endwert auf 25 bis 95 geclamped.
+ */
+function estimateConfidence({ date, today, omMax, omMin, mnDay }) {
+  const dayMs = new Date(`${date}T12:00:00Z`).getTime()
+  const daysAhead = Math.max(0, Math.round((dayMs - today.getTime()) / MS_PER_DAY))
+
+  let confidence = 95 - daysAhead * 4
+
+  if (mnDay && typeof omMax === 'number' && typeof omMin === 'number') {
+    const spread = (Math.abs(omMax - mnDay.max) + Math.abs(omMin - mnDay.min)) / 2
+    if (spread > 6) confidence -= 15
+    else if (spread > 4) confidence -= 8
+    else if (spread < 1) confidence += 8
+    else if (spread < 2) confidence += 4
+  } else {
+    // Einzel-Modell hat etwas weniger Vertrauen.
+    confidence -= 3
+  }
+
+  return Math.max(25, Math.min(95, Math.round(confidence)))
 }
 
 function truncate(arr, len) {

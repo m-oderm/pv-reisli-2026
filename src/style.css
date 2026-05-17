@@ -634,6 +634,43 @@ main { flex: 1; }
   margin-top: 6px;
   letter-spacing: 0.4px;
 }
+.wd-confidence {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(184, 138, 59, 0.25);
+  font-size: 11px;
+  color: var(--ink-soft);
+  letter-spacing: 0.3px;
+}
+.wd-confidence strong {
+  color: var(--ink);
+  font-weight: 600;
+  text-transform: lowercase;
+}
+.wd-confidence.is-hoch strong { color: var(--green); }
+.wd-confidence.is-mittel strong { color: var(--gold); }
+.wd-confidence.is-tief strong,
+.wd-confidence.is-sehr-tief strong { color: var(--orange); }
+
+.wd-conf-dots {
+  display: inline-flex;
+  gap: 3px;
+  flex: 0 0 auto;
+}
+.wd-conf-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(184, 138, 59, 0.22);
+  transition: background 0.25s var(--ease-smooth);
+}
+.wd-conf-dot.is-on { background: var(--gold); }
+.wd-confidence.is-tief .wd-conf-dot.is-on,
+.wd-confidence.is-sehr-tief .wd-conf-dot.is-on { background: var(--orange); }
+
 .weather-foot {
   display: flex;
   justify-content: space-between;
