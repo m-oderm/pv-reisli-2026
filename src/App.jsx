@@ -428,7 +428,7 @@ const CREW = [
     role: 'Zuständig für Überblick, Tarnung und moralische Ausreden.'
   },
   {
-    name: 'Timon Burkart',
+    name: 'Timon Burkard',
     nick: 'Franz',
     role: 'Zuständig für Charme, Chaoskontrolle und gepflegten Durst.'
   }
