@@ -22,8 +22,17 @@ const TRAVEL_END = '2026-06-02'
 const OPEN_METEO_BASE = 'https://api.open-meteo.com/v1/forecast'
 const MET_NORWAY_BASE = 'https://api.met.no/weatherapi/locationforecast/2.0/compact'
 
-const DAILY_PARAMS =
-  'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max'
+const DAILY_PARAMS = [
+  'weather_code',
+  'temperature_2m_max',
+  'temperature_2m_min',
+  'precipitation_probability_max',
+  'precipitation_sum',
+  'wind_speed_10m_max',
+  'uv_index_max',
+  'sunrise',
+  'sunset'
+].join(',')
 
 // Met Norway verlangt einen aussagekräftigen User-Agent, sonst rate-limit.
 const MET_NORWAY_UA = 'pv-reisli-2026/1.0 (+https://github.com/m-oderm/pv-reisli-2026)'
@@ -46,7 +55,10 @@ const ERROR_DETAIL_MAX_CHARS = 200
 const ALLOWED_UNIT_KEYS = [
   'temperature_2m_max',
   'temperature_2m_min',
-  'precipitation_probability_max'
+  'precipitation_probability_max',
+  'precipitation_sum',
+  'wind_speed_10m_max',
+  'uv_index_max'
 ]
 
 export default {
@@ -237,7 +249,12 @@ function mergeDaily(omDaily, mnByDate, today) {
     weather_code: truncate(omDaily?.weather_code, time.length),
     temperature_2m_max: [],
     temperature_2m_min: [],
-    precipitation_probability_max: truncate(omDaily?.precipitation_probability_max, time.length)
+    precipitation_probability_max: truncate(omDaily?.precipitation_probability_max, time.length),
+    precipitation_sum: truncate(omDaily?.precipitation_sum, time.length),
+    wind_speed_10m_max: truncate(omDaily?.wind_speed_10m_max, time.length),
+    uv_index_max: truncate(omDaily?.uv_index_max, time.length),
+    sunrise: truncate(omDaily?.sunrise, time.length),
+    sunset: truncate(omDaily?.sunset, time.length)
   }
   const sourcesPerDay = []
   const confidencePerDay = []

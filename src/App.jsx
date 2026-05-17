@@ -34,13 +34,18 @@ import {
   Sparkles,
   Square,
   Sun,
+  SunMedium,
+  Sunrise,
+  Sunset,
   Tent,
   Ticket,
   Train,
   Umbrella,
   Users,
   Utensils,
-  WalletCards
+  WalletCards,
+  Wind,
+  X
 } from 'lucide-react'
 
 /*
@@ -157,6 +162,11 @@ function deriveDays(data) {
     max: data.daily.temperature_2m_max?.[idx],
     min: data.daily.temperature_2m_min?.[idx],
     rain: data.daily.precipitation_probability_max?.[idx],
+    precipSum: data.daily.precipitation_sum?.[idx] ?? null,
+    wind: data.daily.wind_speed_10m_max?.[idx] ?? null,
+    uv: data.daily.uv_index_max?.[idx] ?? null,
+    sunrise: data.daily.sunrise?.[idx] ?? null,
+    sunset: data.daily.sunset?.[idx] ?? null,
     confidence: data.confidence_per_day?.[idx] ?? null
   }))
   // Solange Reisetage im Forecast auftauchen, blenden wir den Rest aus.
@@ -170,6 +180,21 @@ function confidenceLabel(value) {
   if (value >= 60) return 'mittel'
   if (value >= 45) return 'tief'
   return 'sehr tief'
+}
+
+function formatTimeOnly(iso) {
+  if (!iso) return null
+  const match = iso.match(/T(\d{2}:\d{2})/)
+  return match ? match[1] : null
+}
+
+function uvLabel(value) {
+  const rounded = Math.round(value)
+  if (rounded <= 2) return `${rounded}, gering`
+  if (rounded <= 5) return `${rounded}, mässig`
+  if (rounded <= 7) return `${rounded}, hoch`
+  if (rounded <= 10) return `${rounded}, sehr hoch`
+  return `${rounded}, extrem`
 }
 
 /* ----- Hooks ----------------------------------------------------- */
@@ -520,10 +545,15 @@ function ConfidenceMeter({ value }) {
   )
 }
 
-function WeatherDay({ day }) {
+function WeatherDay({ day, onOpen }) {
   const Icon = day.info.Icon
   return (
-    <div className="weather-day">
+    <button
+      type="button"
+      className="weather-day"
+      onClick={onOpen}
+      aria-label={`Details zu ${day.label} öffnen`}
+    >
       <div className="wd-head">
         <span className="wd-day">{day.label}</span>
         <Icon size={22} />
@@ -537,13 +567,106 @@ function WeatherDay({ day }) {
         <Umbrella size={14} /> {Math.round(day.rain ?? 0)} %
       </div>
       <ConfidenceMeter value={day.confidence} />
+    </button>
+  )
+}
+
+function DetailTile({ Icon, label, value }) {
+  return (
+    <div className="day-modal-detail">
+      <span className="dmd-icon" aria-hidden="true"><Icon size={18} /></span>
+      <span className="dmd-text">
+        <span className="dmd-label">{label}</span>
+        <span className="dmd-value">{value ?? 'k. A.'}</span>
+      </span>
     </div>
+  )
+}
+
+function DayDetailModal({ day, onClose }) {
+  const Icon = day.info.Icon
+
+  useEffect(() => {
+    const onKey = (event) => { if (event.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  useEffect(() => {
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previous }
+  }, [])
+
+  const sunrise = formatTimeOnly(day.sunrise)
+  const sunset = formatTimeOnly(day.sunset)
+  const windText = day.wind != null ? `${Math.round(day.wind)} km/h` : null
+  const uvText = day.uv != null ? uvLabel(day.uv) : null
+  const rainText = day.rain != null ? `${Math.round(day.rain)} %` : null
+  const precipText = day.precipSum != null ? `${day.precipSum.toFixed(1)} mm` : null
+
+  return (
+    <motion.div
+      className="day-modal-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.22, ease: EASE_SMOOTH }}
+      onClick={onClose}
+      role="presentation"
+    >
+      <motion.div
+        className="day-modal"
+        initial={{ y: 40, opacity: 0, scale: 0.96 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        exit={{ y: 40, opacity: 0, scale: 0.96 }}
+        transition={{ duration: 0.34, ease: EASE_OUT_SOFT }}
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Wetter-Details für ${day.label}`}
+      >
+        <button
+          type="button"
+          className="day-modal-close"
+          onClick={onClose}
+          aria-label="Schliessen"
+        >
+          <X size={20} />
+        </button>
+
+        <header className="day-modal-header">
+          <p className="day-modal-day">{day.label}</p>
+          <span className="day-modal-icon" aria-hidden="true"><Icon size={56} /></span>
+          <p className="day-modal-label-text">{day.info.label}</p>
+          <div className="day-modal-temp">
+            <span className="day-modal-max">{Math.round(day.max ?? 0)}°</span>
+            <span className="day-modal-min">{Math.round(day.min ?? 0)}°</span>
+          </div>
+        </header>
+
+        <div className="day-modal-details">
+          <DetailTile Icon={Sunrise} label="Sonnenaufgang" value={sunrise} />
+          <DetailTile Icon={Sunset} label="Sonnenuntergang" value={sunset} />
+          <DetailTile Icon={Wind} label="Wind max" value={windText} />
+          <DetailTile Icon={SunMedium} label="UV-Index" value={uvText} />
+          <DetailTile Icon={Umbrella} label="Regenrisiko" value={rainText} />
+          <DetailTile Icon={Droplets} label="Regen Summe" value={precipText} />
+        </div>
+
+        <footer className="day-modal-foot">
+          <ConfidenceMeter value={day.confidence} />
+        </footer>
+      </motion.div>
+    </motion.div>
   )
 }
 
 function Wetter() {
   const { data, loading, isFallback, updatedAt, reload } = useTravelConditions()
   const visibleDays = useMemo(() => deriveDays(data), [data])
+  const [openIso, setOpenIso] = useState(null)
+  const openDay = visibleDays.find((day) => day.iso === openIso) ?? null
 
   return (
     <section id="wetter" className="section">
@@ -575,7 +698,11 @@ function Wetter() {
               <p className="muted">Noch keine Vorhersage.</p>
             )}
             {visibleDays.map((day) => (
-              <WeatherDay key={day.iso} day={day} />
+              <WeatherDay
+                key={day.iso}
+                day={day}
+                onOpen={() => setOpenIso(day.iso)}
+              />
             ))}
           </motion.div>
         </AnimatePresence>
@@ -589,6 +716,12 @@ function Wetter() {
           )}
         </div>
       </Card>
+
+      <AnimatePresence>
+        {openDay && (
+          <DayDetailModal day={openDay} onClose={() => setOpenIso(null)} />
+        )}
+      </AnimatePresence>
     </section>
   )
 }
