@@ -449,14 +449,18 @@ main { flex: 1; }
   text-align: center;
 }
 .cd-value {
+  position: relative;
   font-family: var(--serif);
   font-weight: 800;
   font-size: clamp(38px, 7vw, 64px);
   line-height: 1;
+  height: clamp(38px, 7vw, 64px);
   color: #fbf6e7;
   letter-spacing: -1px;
   font-variant-numeric: tabular-nums;
+  overflow: hidden;
 }
+.cd-value > span { display: inline-block; }
 .cd-label {
   font-size: 11px;
   letter-spacing: 3px;
@@ -807,19 +811,21 @@ main { flex: 1; }
   outline: 2px solid var(--gold);
   outline-offset: 2px;
 }
-.pack-item-btn svg {
+.pack-check {
+  display: inline-flex;
+  align-items: center;
   flex: 0 0 auto;
   margin-top: 1px;
   color: var(--gold);
   transition: color 0.15s ease;
 }
+.pack-item.is-done .pack-check { color: var(--green); }
 .pack-item-text { flex: 1; }
 .pack-item.is-done .pack-item-text {
   text-decoration: line-through;
   text-decoration-color: rgba(22, 61, 52, 0.55);
   color: var(--muted);
 }
-.pack-item.is-done .pack-item-btn svg { color: var(--green); }
 
 /* ---------- Outdoor war Tarnung, Klappkarten ---------- */
 
@@ -1035,6 +1041,23 @@ main { flex: 1; }
   .footer-inner { flex-direction: column; text-align: center; }
 }
 
+/* ---------- Tap-Feedback auf Mobile ---------- */
+
+.nav-links button,
+.btn-ghost,
+.pack-item-btn,
+.pack-reset,
+.leave-card-header {
+  transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.nav-links button:active,
+.btn-ghost:active,
+.pack-item-btn:active,
+.pack-reset:active,
+.leave-card-header:active {
+  transform: scale(0.97);
+}
+
 /* ---------- Misc ---------- */
 
 @media (prefers-reduced-motion: reduce) {
@@ -1125,7 +1148,7 @@ main { flex: 1; }
   .pack-item-btn:hover {
     background: rgba(247, 236, 209, 0.06);
   }
-  .pack-item.is-done .pack-item-btn svg { color: #6fb39c; }
+  .pack-item.is-done .pack-check { color: #6fb39c; }
   .pack-item.is-done .pack-item-text {
     text-decoration-color: rgba(111, 179, 156, 0.55);
     color: var(--muted);

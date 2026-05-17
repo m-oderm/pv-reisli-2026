@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
 import {
   Beer,
   Bug,
@@ -299,9 +299,22 @@ function Hero() {
         </motion.h1>
 
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3, duration: 0.5 }}
+          initial={{ opacity: 0, scale: 0.9, rotate: -1.5 }}
+          animate={{
+            opacity: 1,
+            scale: 1,
+            rotate: [-1.5, -2.6, -1.5]
+          }}
+          transition={{
+            opacity: { delay: 0.3, duration: 0.5 },
+            scale: { delay: 0.3, duration: 0.5 },
+            rotate: {
+              delay: 0.9,
+              duration: 5,
+              repeat: Infinity,
+              ease: 'easeInOut'
+            }
+          }}
           className="ribbon"
         >
           Es wird ernst!
@@ -405,12 +418,27 @@ function CountdownSection() {
           </p>
         ) : (
           <div className="countdown-grid">
-            {COUNTDOWN_BLOCKS.map(({ key, label }) => (
-              <div key={key} className="cd-block">
-                <div className="cd-value">{String(time[key]).padStart(2, '0')}</div>
-                <div className="cd-label">{label}</div>
-              </div>
-            ))}
+            {COUNTDOWN_BLOCKS.map(({ key, label }) => {
+              const value = String(time[key]).padStart(2, '0')
+              return (
+                <div key={key} className="cd-block">
+                  <div className="cd-value">
+                    <AnimatePresence mode="popLayout" initial={false}>
+                      <motion.span
+                        key={value}
+                        initial={{ y: -10, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 10, opacity: 0 }}
+                        transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+                      >
+                        {value}
+                      </motion.span>
+                    </AnimatePresence>
+                  </div>
+                  <div className="cd-label">{label}</div>
+                </div>
+              )
+            })}
           </div>
         )}
         <p className="countdown-foot">
@@ -769,6 +797,16 @@ function usePackStatus() {
   return { done, toggle, reset }
 }
 
+const PACK_LIST_VARIANTS = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.03 } }
+}
+
+const PACK_ITEM_VARIANTS = {
+  hidden: { opacity: 0, y: 6 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.25 } }
+}
+
 function PackCategoryCard({ category, done, onToggle, delay }) {
   const { Icon, title, items } = category
   const completed = items.filter((item) => done.has(item.id)).length
@@ -779,26 +817,47 @@ function PackCategoryCard({ category, done, onToggle, delay }) {
         <h3 className="pack-cat-title">{title}</h3>
         <span className="pack-cat-count">{completed} / {items.length}</span>
       </div>
-      <ul className="pack-items">
+      <motion.ul
+        className="pack-items"
+        variants={PACK_LIST_VARIANTS}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: '-40px' }}
+      >
         {items.map((item) => {
           const isDone = done.has(item.id)
           return (
-            <li key={item.id} className={`pack-item ${isDone ? 'is-done' : ''}`}>
+            <motion.li
+              key={item.id}
+              variants={PACK_ITEM_VARIANTS}
+              className={`pack-item ${isDone ? 'is-done' : ''}`}
+            >
               <button
                 type="button"
                 className="pack-item-btn"
                 onClick={() => onToggle(item.id)}
                 aria-pressed={isDone}
               >
-                {isDone
-                  ? <CheckSquare size={18} aria-hidden="true" />
-                  : <Square size={18} aria-hidden="true" />}
+                <AnimatePresence mode="popLayout" initial={false}>
+                  <motion.span
+                    key={isDone ? 'done' : 'todo'}
+                    className="pack-check"
+                    initial={{ scale: 0.6, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.6, opacity: 0 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+                  >
+                    {isDone
+                      ? <CheckSquare size={18} aria-hidden="true" />
+                      : <Square size={18} aria-hidden="true" />}
+                  </motion.span>
+                </AnimatePresence>
                 <span className="pack-item-text">{item.text}</span>
               </button>
-            </li>
+            </motion.li>
           )
         })}
-      </ul>
+      </motion.ul>
     </Card>
   )
 }
@@ -1113,22 +1172,24 @@ function Footer() {
 
 export default function App() {
   return (
-    <div className="app">
-      <Nav />
-      <main>
-        <Hero />
-        <div className="container">
-          <Eckdaten />
-          <CountdownSection />
-          <Reiseleitung />
-          <Wetter />
-          <Dresscode />
-          <PackingList />
-          <OutdoorAccordion />
-          <Wichtig />
-        </div>
-      </main>
-      <Footer />
-    </div>
+    <MotionConfig reducedMotion="user">
+      <div className="app">
+        <Nav />
+        <main>
+          <Hero />
+          <div className="container">
+            <Eckdaten />
+            <CountdownSection />
+            <Reiseleitung />
+            <Wetter />
+            <Dresscode />
+            <PackingList />
+            <OutdoorAccordion />
+            <Wichtig />
+          </div>
+        </main>
+        <Footer />
+      </div>
+    </MotionConfig>
   )
 }
