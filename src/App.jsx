@@ -9,7 +9,13 @@ import {
   ChevronDown,
   CircleX,
   Clock,
+  Cloud,
+  CloudDrizzle,
+  CloudFog,
+  CloudLightning,
   CloudRain,
+  CloudRainWind,
+  CloudSnow,
   CloudSun,
   Compass,
   Droplets,
@@ -92,36 +98,36 @@ const FALLBACK_PAYLOAD = {
 
 const WEATHER_FALLBACK_INFO = { label: 'wechselhaft', Icon: CloudSun }
 
-// Open-Meteo WMO Wetter-Codes auf passende Icons und Kurzlabels.
+// Open-Meteo WMO Wetter-Codes auf laienverständliche Labels.
 const WEATHER_CODE_TABLE = {
-  0: { label: 'klar', Icon: Sun },
-  1: { label: 'teils sonnig', Icon: CloudSun },
-  2: { label: 'teils sonnig', Icon: CloudSun },
-  3: { label: 'bewölkt', Icon: CloudSun },
-  45: { label: 'neblig', Icon: CloudSun },
-  48: { label: 'neblig', Icon: CloudSun },
-  51: { label: 'Niesel', Icon: CloudRain },
-  53: { label: 'Niesel', Icon: CloudRain },
-  55: { label: 'Niesel', Icon: CloudRain },
-  56: { label: 'Niesel', Icon: CloudRain },
-  57: { label: 'Niesel', Icon: CloudRain },
-  61: { label: 'Regen', Icon: CloudRain },
+  0: { label: 'sonnig', Icon: Sun },
+  1: { label: 'meist sonnig', Icon: Sun },
+  2: { label: 'teils bewölkt', Icon: CloudSun },
+  3: { label: 'bedeckt', Icon: Cloud },
+  45: { label: 'neblig', Icon: CloudFog },
+  48: { label: 'neblig', Icon: CloudFog },
+  51: { label: 'leichter Regen', Icon: CloudDrizzle },
+  53: { label: 'leichter Regen', Icon: CloudDrizzle },
+  55: { label: 'anhaltender Regen', Icon: CloudRain },
+  56: { label: 'gefrierender Regen', Icon: CloudRainWind },
+  57: { label: 'gefrierender Regen', Icon: CloudRainWind },
+  61: { label: 'leichter Regen', Icon: CloudDrizzle },
   63: { label: 'Regen', Icon: CloudRain },
-  65: { label: 'Regen', Icon: CloudRain },
-  66: { label: 'Regen', Icon: CloudRain },
-  67: { label: 'Regen', Icon: CloudRain },
-  71: { label: 'Schnee', Icon: Snowflake },
-  73: { label: 'Schnee', Icon: Snowflake },
-  75: { label: 'Schnee', Icon: Snowflake },
-  77: { label: 'Schnee', Icon: Snowflake },
-  80: { label: 'Regen', Icon: CloudRain },
-  81: { label: 'Regen', Icon: CloudRain },
-  82: { label: 'Regen', Icon: CloudRain },
-  85: { label: 'Schnee', Icon: Snowflake },
-  86: { label: 'Schnee', Icon: Snowflake },
-  95: { label: 'Gewitter möglich', Icon: Umbrella },
-  96: { label: 'Gewitter möglich', Icon: Umbrella },
-  99: { label: 'Gewitter möglich', Icon: Umbrella }
+  65: { label: 'starker Regen', Icon: CloudRainWind },
+  66: { label: 'gefrierender Regen', Icon: CloudRainWind },
+  67: { label: 'gefrierender Regen', Icon: CloudRainWind },
+  71: { label: 'leichter Schneefall', Icon: CloudSnow },
+  73: { label: 'Schneefall', Icon: CloudSnow },
+  75: { label: 'starker Schneefall', Icon: CloudSnow },
+  77: { label: 'Schneefall', Icon: Snowflake },
+  80: { label: 'Regenschauer', Icon: CloudRain },
+  81: { label: 'Regenschauer', Icon: CloudRain },
+  82: { label: 'heftige Schauer', Icon: CloudRainWind },
+  85: { label: 'Schneeschauer', Icon: CloudSnow },
+  86: { label: 'Schneeschauer', Icon: CloudSnow },
+  95: { label: 'Gewitter', Icon: CloudLightning },
+  96: { label: 'Gewitter mit Hagel', Icon: CloudLightning },
+  99: { label: 'Hagelgewitter', Icon: CloudLightning }
 }
 
 /* ----- Hilfsfunktionen ------------------------------------------- */
@@ -173,7 +179,8 @@ function deriveDays(data) {
     wind: d.wind_speed_10m_max?.[idx] ?? null,
     windP10: d.wind_speed_10m_max_p10?.[idx] ?? null,
     windP90: d.wind_speed_10m_max_p90?.[idx] ?? null,
-    uv: d.uv_index_max?.[idx] ?? null,
+    sunshineSec: d.sunshine_duration?.[idx] ?? null,
+    daylightSec: d.daylight_duration?.[idx] ?? null,
     sunrise: d.sunrise?.[idx] ?? null,
     sunset: d.sunset?.[idx] ?? null,
     confidence: data.confidence_per_day?.[idx] ?? null
@@ -183,11 +190,9 @@ function deriveDays(data) {
   return trip.length > 0 ? trip : all
 }
 
-function formatRange(low, high, unit, decimals = 0) {
-  if (typeof low !== 'number' || typeof high !== 'number') return null
-  if (Math.abs(high - low) < (decimals > 0 ? 0.05 : 0.5)) return null
-  const fmt = (v) => decimals > 0 ? v.toFixed(decimals) : Math.round(v)
-  return `${fmt(low)} bis ${fmt(high)}${unit ? ` ${unit}` : ''}`
+function rangeNumber(v, decimals) {
+  if (typeof v !== 'number') return null
+  return decimals > 0 ? v.toFixed(decimals).replace('.', ',') : String(Math.round(v))
 }
 
 function confidenceLabel(value) {
@@ -204,13 +209,16 @@ function formatTimeOnly(iso) {
   return match ? match[1] : null
 }
 
-function uvLabel(value) {
-  const rounded = Math.round(value)
-  if (rounded <= 2) return `${rounded}, gering`
-  if (rounded <= 5) return `${rounded}, mässig`
-  if (rounded <= 7) return `${rounded}, hoch`
-  if (rounded <= 10) return `${rounded}, sehr hoch`
-  return `${rounded}, extrem`
+function formatSunshine(sunshineSec, daylightSec) {
+  if (typeof sunshineSec !== 'number') return { value: null, hint: null }
+  const hours = sunshineSec / 3600
+  const value = `${hours.toFixed(1).replace('.', ',')} h`
+  let hint = null
+  if (typeof daylightSec === 'number' && daylightSec > 0) {
+    const percent = Math.round((sunshineSec / daylightSec) * 100)
+    hint = `${percent} % der Tageshelle`
+  }
+  return { value, hint }
 }
 
 /* ----- Hooks ----------------------------------------------------- */
@@ -587,14 +595,37 @@ function WeatherDay({ day, onOpen }) {
   )
 }
 
-function DetailTile({ Icon, label, value, range }) {
+function RangeBar({ low, high, value, unit, decimals = 0 }) {
+  if (typeof low !== 'number' || typeof high !== 'number' || typeof value !== 'number') return null
+  if (Math.abs(high - low) < (decimals > 0 ? 0.05 : 0.5)) return null
+  const lowText = rangeNumber(low, decimals)
+  const highText = rangeNumber(high, decimals)
+  const pos = ((value - low) / (high - low)) * 100
+  return (
+    <div className="dmd-range" aria-label={`Modell-Streuung von ${lowText} bis ${highText}${unit ? ` ${unit}` : ''}`}>
+      <span className="dmd-range-track" aria-hidden="true">
+        <span
+          className="dmd-range-dot"
+          style={{ left: `${Math.max(0, Math.min(100, pos))}%` }}
+        />
+      </span>
+      <span className="dmd-range-labels">
+        <span>{lowText}</span>
+        <span>{highText}{unit ? ` ${unit}` : ''}</span>
+      </span>
+    </div>
+  )
+}
+
+function DetailTile({ Icon, label, value, hint, range }) {
   return (
     <div className="day-modal-detail">
       <span className="dmd-icon" aria-hidden="true"><Icon size={18} /></span>
       <span className="dmd-text">
         <span className="dmd-label">{label}</span>
         <span className="dmd-value">{value ?? 'k. A.'}</span>
-        {range && <span className="dmd-range">Bandbreite {range}</span>}
+        {hint && <span className="dmd-hint">{hint}</span>}
+        {range}
       </span>
     </div>
   )
@@ -618,13 +649,11 @@ function DayDetailModal({ day, onClose }) {
   const sunrise = formatTimeOnly(day.sunrise)
   const sunset = formatTimeOnly(day.sunset)
   const windText = day.wind != null ? `${Math.round(day.wind)} km/h` : null
-  const windRange = formatRange(day.windP10, day.windP90, 'km/h')
-  const uvText = day.uv != null ? uvLabel(day.uv) : null
+  const sunshine = formatSunshine(day.sunshineSec, day.daylightSec)
   const rainText = day.rain != null ? `${Math.round(day.rain)} %` : null
   const precipText = day.precipSum != null ? `${day.precipSum.toFixed(1)} mm` : null
-  const precipRange = formatRange(day.precipSumP10, day.precipSumP90, 'mm', 1)
-  const maxRange = formatRange(day.maxP10, day.maxP90, '°')
-  const minRange = formatRange(day.minP10, day.minP90, '°')
+  const tempMax = day.max != null ? Math.round(day.max) : null
+  const tempMin = day.min != null ? Math.round(day.min) : null
 
   return (
     <motion.div
@@ -661,25 +690,44 @@ function DayDetailModal({ day, onClose }) {
           <span className="day-modal-icon" aria-hidden="true"><Icon size={56} /></span>
           <p className="day-modal-label-text">{day.info.label}</p>
           <div className="day-modal-temp">
-            <span className="day-modal-max">{Math.round(day.max ?? 0)}°</span>
-            <span className="day-modal-min">{Math.round(day.min ?? 0)}°</span>
+            <span className="day-modal-max">{tempMax != null ? `${tempMax}°` : 'k. A.'}</span>
+            <span className="day-modal-min">{tempMin != null ? `${tempMin}°` : 'k. A.'}</span>
           </div>
-          {(maxRange || minRange) && (
+          {(day.maxP10 != null && day.maxP90 != null) || (day.minP10 != null && day.minP90 != null) ? (
             <p className="day-modal-temp-range">
-              {maxRange && <>tagsüber {maxRange}</>}
-              {maxRange && minRange && <>, </>}
-              {minRange && <>nachts {minRange}</>}
+              {day.maxP10 != null && day.maxP90 != null && (
+                <>Tag von {Math.round(day.maxP10)}° bis {Math.round(day.maxP90)}°</>
+              )}
+              {day.maxP10 != null && day.maxP90 != null && day.minP10 != null && day.minP90 != null && ', '}
+              {day.minP10 != null && day.minP90 != null && (
+                <>Nacht von {Math.round(day.minP10)}° bis {Math.round(day.minP90)}°</>
+              )}
             </p>
-          )}
+          ) : null}
         </header>
 
         <div className="day-modal-details">
           <DetailTile Icon={Sunrise} label="Aufgang" value={sunrise} />
           <DetailTile Icon={Sunset} label="Untergang" value={sunset} />
-          <DetailTile Icon={Wind} label="Wind" value={windText} range={windRange} />
-          <DetailTile Icon={SunMedium} label="UV-Index" value={uvText} />
+          <DetailTile
+            Icon={Wind}
+            label="Wind"
+            value={windText}
+            range={<RangeBar low={day.windP10} high={day.windP90} value={day.wind} unit="km/h" />}
+          />
+          <DetailTile
+            Icon={SunMedium}
+            label="Sonne"
+            value={sunshine.value}
+            hint={sunshine.hint}
+          />
           <DetailTile Icon={Umbrella} label="Regenrisiko" value={rainText} />
-          <DetailTile Icon={Droplets} label="Regenmenge" value={precipText} range={precipRange} />
+          <DetailTile
+            Icon={Droplets}
+            label="Regenmenge"
+            value={precipText}
+            range={<RangeBar low={day.precipSumP10} high={day.precipSumP90} value={day.precipSum} unit="mm" decimals={1} />}
+          />
         </div>
 
         <footer className="day-modal-foot">

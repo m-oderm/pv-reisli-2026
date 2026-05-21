@@ -1307,7 +1307,7 @@ main { flex: 1; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.dmd-range {
+.dmd-hint {
   margin-top: 2px;
   font-size: 10.5px;
   color: var(--muted);
@@ -1315,6 +1315,37 @@ main { flex: 1; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.dmd-range {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 8px;
+}
+.dmd-range-track {
+  position: relative;
+  display: block;
+  height: 3px;
+  background: rgba(184, 138, 59, 0.25);
+  border-radius: 999px;
+}
+.dmd-range-dot {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gold);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 2px var(--paper);
+}
+.dmd-range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .day-modal-foot {
@@ -1464,8 +1495,11 @@ main { flex: 1; }
     border-color: rgba(184, 138, 59, 0.22);
   }
   .dmd-value { color: var(--ink); }
-  .dmd-range,
+  .dmd-hint,
   .day-modal-temp-range { color: var(--muted); }
+  .dmd-range-track { background: rgba(247, 236, 209, 0.18); }
+  .dmd-range-dot { box-shadow: 0 0 0 2px #14253c; }
+  .dmd-range-labels { color: var(--muted); }
 
   /* Daten-Trennlinien dezenter */
   .data-list li + li {

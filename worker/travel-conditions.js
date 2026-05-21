@@ -26,11 +26,12 @@ const OPEN_METEO_FORECAST = 'https://api.open-meteo.com/v1/forecast'
 const OPEN_METEO_ENSEMBLE = 'https://ensemble-api.open-meteo.com/v1/ensemble'
 
 const ENSEMBLE_MODELS = 'ecmwf_ifs025,gfs_seamless,icon_seamless'
-const ENSEMBLE_HOURLY = 'temperature_2m,precipitation,wind_speed_10m'
+const ENSEMBLE_HOURLY = 'temperature_2m,precipitation,wind_speed_10m,weather_code'
 
 const FORECAST_DAILY = [
   'weather_code',
-  'uv_index_max',
+  'sunshine_duration',
+  'daylight_duration',
   'sunrise',
   'sunset'
 ].join(',')
@@ -166,15 +167,20 @@ async function fetchEnsemble({ lat, lon, tz, useTripRange }) {
 
 /* ----- Aggregation: hourly Ensemble → daily Statistik -------- */
 
-const MEMBER_KEY_PATTERN = /^(temperature_2m|precipitation|wind_speed_10m)_(member\d{2}_)?([a-z0-9_]+)$/
+const MEMBER_KEY_PATTERN = /^(temperature_2m|precipitation|wind_speed_10m|weather_code)_(member\d{2}_)?([a-z0-9_]+)$/
 
 /**
  * Gruppiert die hourly-Member-Spalten nach Variable.
- * Returns `{ temperature_2m: [arr1, arr2, ...], precipitation: [...], wind_speed_10m: [...] }`.
+ * Returns `{ temperature_2m: [arr1, arr2, ...], precipitation: [...], wind_speed_10m: [...], weather_code: [...] }`.
  * Die nicht-perturbed Kontroll-Läufe (ohne `_memberNN_`) werden ebenfalls mitgenommen.
  */
 function groupMembersByVariable(hourly) {
-  const out = { temperature_2m: [], precipitation: [], wind_speed_10m: [] }
+  const out = {
+    temperature_2m: [],
+    precipitation: [],
+    wind_speed_10m: [],
+    weather_code: []
+  }
   if (!hourly || typeof hourly !== 'object') return out
   for (const key of Object.keys(hourly)) {
     if (key === 'time') continue
@@ -229,6 +235,36 @@ function quantile(sorted, q) {
 }
 
 /**
+ * Wählt aus mehreren Members den repräsentativen Wetter-Code eines Tages.
+ *
+ * Vorgehen:
+ *   1. Pro Member den Tageshöchst-Code aggregieren (worst hour of day).
+ *   2. Über alle Members das 75. Perzentil der Codes nehmen.
+ *      Das gibt einen leichten Pessimismus-Bias: wenn 25% der Members
+ *      schlechter sehen als der Median, wird das schlechtere Wetter gezeigt.
+ *      Dieser Wert ist immer ein echter WMO-Code aus dem Sample.
+ */
+function dominantWeatherCode(memberSeries, hourIdxs) {
+  if (!Array.isArray(memberSeries) || memberSeries.length === 0) return null
+  const dayMax = []
+  for (const series of memberSeries) {
+    if (!Array.isArray(series)) continue
+    let max = null
+    for (const i of hourIdxs) {
+      const v = series[i]
+      if (typeof v === 'number' && !Number.isNaN(v) && (max === null || v > max)) {
+        max = v
+      }
+    }
+    if (max !== null) dayMax.push(max)
+  }
+  if (dayMax.length === 0) return null
+  dayMax.sort((a, b) => a - b)
+  const idx = Math.min(dayMax.length - 1, Math.round((dayMax.length - 1) * 0.75))
+  return dayMax[idx]
+}
+
+/**
  * Bildet die hourly Indexes pro lokalem Datum. Die Ensemble-API liefert
  * Zeitstempel bereits in der gewünschten Zeitzone (timezone-Parameter),
  * also reicht der Datums-Prefix für Gruppierung.
@@ -275,11 +311,18 @@ function composeDaily(forecast, ensemble) {
   const fDaily = forecast?.daily ?? {}
   const time = Array.isArray(fDaily.time) ? fDaily.time : []
   const stats = ensembleDailyStats(ensemble)
+  const grouped = groupMembersByVariable(ensemble?.hourly)
+  const codeMembers = grouped.weather_code
+  const precipMembers = grouped.precipitation
+  const hoursByDate = ensemble?.hourly?.time
+    ? groupHoursByLocalDate(ensemble.hourly.time)
+    : new Map()
 
   const out = {
     time: [...time],
-    weather_code: truncate(fDaily.weather_code, time.length),
-    uv_index_max: truncate(fDaily.uv_index_max, time.length),
+    weather_code: [],
+    sunshine_duration: truncate(fDaily.sunshine_duration, time.length),
+    daylight_duration: truncate(fDaily.daylight_duration, time.length),
     sunrise: truncate(fDaily.sunrise, time.length),
     sunset: truncate(fDaily.sunset, time.length),
 
@@ -300,8 +343,14 @@ function composeDaily(forecast, ensemble) {
     wind_speed_10m_max_p90: []
   }
 
-  for (const date of time) {
+  for (let i = 0; i < time.length; i++) {
+    const date = time[i]
     const s = stats.get(date)
+
+    const hourIdxs = hoursByDate.get(date)
+    const ensembleCode = hourIdxs ? dominantWeatherCode(codeMembers, hourIdxs) : null
+    out.weather_code.push(ensembleCode ?? fDaily.weather_code?.[i] ?? null)
+
     out.temperature_2m_max.push(roundOneDecimal(s?.tMax.p50))
     out.temperature_2m_max_p10.push(roundOneDecimal(s?.tMax.p10))
     out.temperature_2m_max_p90.push(roundOneDecimal(s?.tMax.p90))
@@ -316,7 +365,9 @@ function composeDaily(forecast, ensemble) {
 
     // Anteil Members mit "spürbarem" Niederschlag > 1 mm, als ehrliche
     // Regenwahrscheinlichkeit (gleiche Schwelle wie Kachelmannwetter).
-    out.precipitation_probability_max.push(rainProbabilityForDate(stats, ensemble, date))
+    out.precipitation_probability_max.push(
+      hourIdxs ? rainProbability(precipMembers, hourIdxs) : null
+    )
 
     out.wind_speed_10m_max.push(roundOneDecimal(s?.wMax.p50))
     out.wind_speed_10m_max_p10.push(roundOneDecimal(s?.wMax.p10))
@@ -325,16 +376,14 @@ function composeDaily(forecast, ensemble) {
   return out
 }
 
-function rainProbabilityForDate(stats, ensemble, date) {
-  if (!ensemble?.hourly?.time) return null
-  const hourIdxs = groupHoursByLocalDate(ensemble.hourly.time).get(date)
-  if (!hourIdxs?.length) return null
-  const grouped = groupMembersByVariable(ensemble.hourly)
-  const dailySums = grouped.precipitation.map((s) => aggregateDay(s, hourIdxs, 'sum'))
-  const valid = dailySums.filter((v) => typeof v === 'number')
-  if (valid.length === 0) return null
-  const wet = valid.filter((v) => v > 1).length
-  return Math.round((wet / valid.length) * 100)
+function rainProbability(precipMembers, hourIdxs) {
+  if (!Array.isArray(precipMembers) || precipMembers.length === 0) return null
+  const dailySums = precipMembers
+    .map((s) => aggregateDay(s, hourIdxs, 'sum'))
+    .filter((v) => typeof v === 'number')
+  if (dailySums.length === 0) return null
+  const wet = dailySums.filter((v) => v > 1).length
+  return Math.round((wet / dailySums.length) * 100)
 }
 
 /* ----- Confidence aus Bandbreite --------------------------------- */
@@ -379,7 +428,8 @@ const ALLOWED_UNIT_KEYS = [
   'precipitation_sum',
   'precipitation_probability_max',
   'wind_speed_10m_max',
-  'uv_index_max'
+  'sunshine_duration',
+  'daylight_duration'
 ]
 
 function pickUnits(units) {
