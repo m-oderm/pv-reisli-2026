@@ -99,7 +99,7 @@ export default {
       {
         daily,
         daily_units: pickUnits(forecast.daily_units),
-        hourly: pickHourly(forecast.hourly),
+        hourly: composeHourly(forecast, ensemble),
         within_travel_window: useTripRange,
         ensemble_active: Boolean(ensemble),
         confidence_per_day: confidencePerDay,
@@ -483,6 +483,60 @@ function pickHourly(hourly) {
   const out = {}
   for (const key of ALLOWED_HOURLY_KEYS) {
     if (Array.isArray(hourly[key])) out[key] = hourly[key]
+  }
+  return out
+}
+
+/**
+ * Aggregiert die hourly-Daten aus dem Ensemble zu konsistenten Werten:
+ *   * temperature_2m: Median über alle Members
+ *   * weather_code: 75. Perzentil (gleicher Pessimismus-Bias wie bei daily)
+ *   * precipitation_probability: Anteil Members mit > 0.1 mm Niederschlag
+ * So sind Code und PoP innerhalb derselben Stunde konsistent — sie kommen
+ * aus demselben Member-Pool statt aus Open-Meteos best_match-Mix, der
+ * jeden Wert aus einem anderen Modell ziehen kann.
+ *
+ * Fällt das Ensemble aus, wird auf den deterministischen Forecast zurückgegriffen.
+ */
+function composeHourly(forecast, ensemble) {
+  const ensembleHourly = ensemble?.hourly
+  if (!ensembleHourly?.time?.length) {
+    return pickHourly(forecast?.hourly)
+  }
+
+  const times = ensembleHourly.time
+  const grouped = groupMembersByVariable(ensembleHourly)
+  const out = {
+    time: [...times],
+    temperature_2m: new Array(times.length).fill(null),
+    weather_code: new Array(times.length).fill(null),
+    precipitation_probability: new Array(times.length).fill(null)
+  }
+
+  for (let i = 0; i < times.length; i++) {
+    const temps = collectAtHour(grouped.temperature_2m, i).sort((a, b) => a - b)
+    if (temps.length > 0) out.temperature_2m[i] = roundOneDecimal(quantile(temps, 0.5))
+
+    const codes = collectAtHour(grouped.weather_code, i).sort((a, b) => a - b)
+    if (codes.length > 0) {
+      const idx = Math.min(codes.length - 1, Math.round((codes.length - 1) * 0.75))
+      out.weather_code[i] = codes[idx]
+      // PoP aus den Codes: Anteil Members, die einen Niederschlags-Code sehen
+      // (51+ = Niesel, Regen, Schnee, Schauer, Gewitter). So sind Code und
+      // PoP innerhalb derselben Stunde semantisch konsistent.
+      const wet = codes.filter((c) => c >= 51).length
+      out.precipitation_probability[i] = Math.round((wet / codes.length) * 100)
+    }
+  }
+  return out
+}
+
+function collectAtHour(memberSeries, hourIdx) {
+  if (!Array.isArray(memberSeries)) return []
+  const out = []
+  for (const series of memberSeries) {
+    const v = series?.[hourIdx]
+    if (typeof v === 'number' && !Number.isNaN(v)) out.push(v)
   }
   return out
 }
