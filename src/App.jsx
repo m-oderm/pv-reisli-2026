@@ -648,7 +648,7 @@ function HourlyStrip({ points }) {
         const temp = typeof p.temp === 'number' ? Math.round(p.temp) : null
         const info = weatherCodeToInfo(p.code ?? 2)
         const Icon = info.Icon
-        const showRain = typeof p.pop === 'number' && p.pop >= 25
+        const showRain = typeof p.pop === 'number' && p.pop >= 30
         return (
           <div key={p.hour} className="hourly-cell" role="listitem">
             <span className="hourly-hour">{`${String(p.hour).padStart(2, '0')} Uhr`}</span>

@@ -258,14 +258,44 @@ function filterToDaylight(hourIdxs, times, sunrise, sunset) {
 }
 
 /**
- * Wählt aus mehreren Members den repräsentativen Wetter-Code eines Tages.
+ * Wählt aus mehreren Members einen repräsentativen Wetter-Code.
  *
- * Vorgehen:
- *   1. Pro Member den Tageshöchst-Code aggregieren (worst hour of day).
- *   2. Über alle Members das 75. Perzentil der Codes nehmen.
- *      Das gibt einen leichten Pessimismus-Bias: wenn 25% der Members
- *      schlechter sehen als der Median, wird das schlechtere Wetter gezeigt.
- *      Dieser Wert ist immer ein echter WMO-Code aus dem Sample.
+ * Dreistufige Logik, die zwischen «klar» (Codes 0-3) und «Regen» (51+)
+ * einen weichen Übergang über Code 80 (Regenschauer) modelliert:
+ *
+ *   * ≥ 50 % Members mit Niederschlag → Median der Niederschlags-Codes
+ *     (klare Mehrheit, konkreter Regen-Typ)
+ *   * 30-50 % Members mit Niederschlag → Code 80 (Regenschauer)
+ *     (gemischtes Bild, sporadischer Niederschlag möglich)
+ *   * < 30 % Members mit Niederschlag → Median der trockenen Codes
+ *     (Mehrheit trocken, kein Regen-Risiko anzeigen)
+ *
+ * Verhindert die harten P75-Sprünge zwischen «bedeckt» und «Regen» und
+ * spiegelt das Modell-Konsens besser wider.
+ */
+function hybridWeatherCode(codes) {
+  if (!Array.isArray(codes) || codes.length === 0) return null
+
+  const wet = codes.filter((c) => c >= 51).length
+  const wetRatio = wet / codes.length
+
+  if (wetRatio >= 0.5) {
+    const wetSorted = codes.filter((c) => c >= 51).sort((a, b) => a - b)
+    return wetSorted[Math.floor(wetSorted.length / 2)]
+  }
+
+  if (wetRatio >= 0.3) {
+    return 80
+  }
+
+  const drySorted = codes.filter((c) => c < 51).sort((a, b) => a - b)
+  if (drySorted.length === 0) return null
+  return drySorted[Math.floor(drySorted.length / 2)]
+}
+
+/**
+ * Aggregiert pro Member den Tageshöchst-Code (worst hour of day) und
+ * leitet daraus den repräsentativen Tages-Code via hybridWeatherCode ab.
  */
 function dominantWeatherCode(memberSeries, hourIdxs) {
   if (!Array.isArray(memberSeries) || memberSeries.length === 0) return null
@@ -281,10 +311,7 @@ function dominantWeatherCode(memberSeries, hourIdxs) {
     }
     if (max !== null) dayMax.push(max)
   }
-  if (dayMax.length === 0) return null
-  dayMax.sort((a, b) => a - b)
-  const idx = Math.min(dayMax.length - 1, Math.round((dayMax.length - 1) * 0.75))
-  return dayMax[idx]
+  return hybridWeatherCode(dayMax)
 }
 
 /**
@@ -517,13 +544,10 @@ function composeHourly(forecast, ensemble) {
     const temps = collectAtHour(grouped.temperature_2m, i).sort((a, b) => a - b)
     if (temps.length > 0) out.temperature_2m[i] = roundOneDecimal(quantile(temps, 0.5))
 
-    const codes = collectAtHour(grouped.weather_code, i).sort((a, b) => a - b)
+    const codes = collectAtHour(grouped.weather_code, i)
     if (codes.length > 0) {
-      const idx = Math.min(codes.length - 1, Math.round((codes.length - 1) * 0.75))
-      out.weather_code[i] = codes[idx]
-      // PoP aus den Codes: Anteil Members, die einen Niederschlags-Code sehen
-      // (51+ = Niesel, Regen, Schnee, Schauer, Gewitter). So sind Code und
-      // PoP innerhalb derselben Stunde semantisch konsistent.
+      out.weather_code[i] = hybridWeatherCode(codes)
+      // PoP: Anteil Members mit Niederschlags-Code (51+).
       const wet = codes.filter((c) => c >= 51).length
       out.precipitation_probability[i] = Math.round((wet / codes.length) * 100)
     }
