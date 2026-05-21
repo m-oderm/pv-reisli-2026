@@ -13,6 +13,7 @@ import {
   CloudDrizzle,
   CloudFog,
   CloudLightning,
+  CloudMoon,
   CloudRain,
   CloudRainWind,
   CloudSnow,
@@ -30,6 +31,7 @@ import {
   Map,
   MapPin,
   MessageCircle,
+  Moon,
   Mountain,
   Music,
   RefreshCw,
@@ -146,8 +148,20 @@ function formatGermanDay(iso) {
   return `${weekday}, ${String(day).padStart(2, '0')}.${String(month).padStart(2, '0')}.`
 }
 
-function weatherCodeToInfo(code) {
-  return WEATHER_CODE_TABLE[code] ?? WEATHER_FALLBACK_INFO
+// Für die Nachtstunden ersetzen wir Sonne/CloudSun durch Mond/CloudMoon,
+// damit das stündliche Bild zur Tageszeit passt.
+const NIGHT_ICON_OVERRIDES = {
+  0: Moon,
+  1: Moon,
+  2: CloudMoon
+}
+
+function weatherCodeToInfo(code, isNight = false) {
+  const info = WEATHER_CODE_TABLE[code] ?? WEATHER_FALLBACK_INFO
+  if (isNight && NIGHT_ICON_OVERRIDES[code]) {
+    return { ...info, Icon: NIGHT_ICON_OVERRIDES[code] }
+  }
+  return info
 }
 
 function smoothScrollTo(id) {
@@ -182,7 +196,7 @@ function deriveDays(data) {
     daylightSec: d.daylight_duration?.[idx] ?? null,
     sunrise: d.sunrise?.[idx] ?? null,
     sunset: d.sunset?.[idx] ?? null,
-    hourly: extractHourlyForDay(data.hourly, iso),
+    hourly: extractHourlyForDay(data.hourly, iso, d.sunrise?.[idx], d.sunset?.[idx]),
     confidence: data.confidence_per_day?.[idx] ?? null
   }))
   // Solange Reisetage im Forecast auftauchen, blenden wir den Rest aus.
@@ -195,17 +209,21 @@ function rangeNumber(v, decimals) {
   return decimals > 0 ? v.toFixed(decimals).replace('.', ',') : String(Math.round(v))
 }
 
-function extractHourlyForDay(hourly, iso) {
+function extractHourlyForDay(hourly, iso, sunrise, sunset) {
   if (!hourly?.time || !iso) return null
   const points = []
   for (let i = 0; i < hourly.time.length; i++) {
     const ts = hourly.time[i]
     if (typeof ts !== 'string' || ts.slice(0, 10) !== iso) continue
+    const isNight = sunrise && sunset
+      ? !(ts >= sunrise && ts <= sunset)
+      : false
     points.push({
       hour: parseInt(ts.slice(11, 13), 10),
       temp: hourly.temperature_2m?.[i] ?? null,
       code: hourly.weather_code?.[i] ?? null,
-      pop: hourly.precipitation_probability?.[i] ?? null
+      pop: hourly.precipitation_probability?.[i] ?? null,
+      isNight
     })
   }
   return points.length > 0 ? points : null
@@ -646,7 +664,7 @@ function HourlyStrip({ points }) {
     <div className="hourly-strip" role="list" aria-label="Stündliche Vorhersage">
       {points.map((p) => {
         const temp = typeof p.temp === 'number' ? Math.round(p.temp) : null
-        const info = weatherCodeToInfo(p.code ?? 2)
+        const info = weatherCodeToInfo(p.code ?? 2, p.isNight)
         const Icon = info.Icon
         const showRain = typeof p.pop === 'number' && p.pop >= 30
         return (
