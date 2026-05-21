@@ -543,7 +543,7 @@ function collectAtHour(memberSeries, hourIdx) {
 
 function composeNote(useTripRange, ensembleActive) {
   const lead = ensembleActive
-    ? 'Über 100 Modellläufe gemessen, gewogen, gemittelt. Das Bier dazu war Pflicht'
+    ? 'Sonne, Regen oder Ausreden: Wir sind vorbereitet'
     : 'Wetterlage gemeldet'
   return useTripRange
     ? `${lead}. Tag antippen für das Detail-Briefing.`
