@@ -731,9 +731,9 @@ function WindCard({ value, p10, p90, deg, dirLabel }) {
           <span className="wind-value">{Math.round(value)} km/h</span>
         </li>
         {showSpread && (
-          <li>
+          <li className="wind-spread">
             <span className="wind-label">Spielraum</span>
-            <span className="wind-value">{Math.round(p10)} bis {Math.round(p90)} km/h</span>
+            <RangeBar low={p10} high={p90} value={value} unit="km/h" />
           </li>
         )}
         {dirLabel && (
