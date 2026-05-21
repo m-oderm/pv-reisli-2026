@@ -33,7 +33,14 @@ const FORECAST_DAILY = [
   'sunshine_duration',
   'daylight_duration',
   'sunrise',
-  'sunset'
+  'sunset',
+  'wind_direction_10m_dominant'
+].join(',')
+
+const FORECAST_HOURLY = [
+  'temperature_2m',
+  'weather_code',
+  'precipitation_probability'
 ].join(',')
 
 const MS_PER_DAY = 86_400_000
@@ -92,6 +99,7 @@ export default {
       {
         daily,
         daily_units: pickUnits(forecast.daily_units),
+        hourly: pickHourly(forecast.hourly),
         within_travel_window: useTripRange,
         ensemble_active: Boolean(ensemble),
         confidence_per_day: confidencePerDay,
@@ -120,7 +128,8 @@ async function fetchForecast({ lat, lon, tz, useTripRange }) {
     latitude: String(lat),
     longitude: String(lon),
     timezone: String(tz),
-    daily: FORECAST_DAILY
+    daily: FORECAST_DAILY,
+    hourly: FORECAST_HOURLY
   })
   if (useTripRange) {
     params.set('start_date', TRAVEL_START)
@@ -325,6 +334,7 @@ function composeDaily(forecast, ensemble) {
     daylight_duration: truncate(fDaily.daylight_duration, time.length),
     sunrise: truncate(fDaily.sunrise, time.length),
     sunset: truncate(fDaily.sunset, time.length),
+    wind_direction_10m_dominant: truncate(fDaily.wind_direction_10m_dominant, time.length),
 
     temperature_2m_max: [],
     temperature_2m_max_p10: [],
@@ -438,6 +448,22 @@ function pickUnits(units) {
     if (typeof units[key] === 'string') out[key] = units[key]
     return out
   }, {})
+}
+
+const ALLOWED_HOURLY_KEYS = [
+  'time',
+  'temperature_2m',
+  'weather_code',
+  'precipitation_probability'
+]
+
+function pickHourly(hourly) {
+  if (!hourly) return null
+  const out = {}
+  for (const key of ALLOWED_HOURLY_KEYS) {
+    if (Array.isArray(hourly[key])) out[key] = hourly[key]
+  }
+  return out
 }
 
 function composeNote(useTripRange, ensembleActive) {

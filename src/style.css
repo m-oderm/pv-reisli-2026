@@ -1250,6 +1250,199 @@ main { flex: 1; }
   color: var(--ink-soft);
 }
 
+/* ---------- Temperatur-Bandbreite-Balken im Modal-Header ---------- */
+
+.temp-bars {
+  margin: 18px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.temp-bar-row {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.temp-bar-label {
+  color: var(--ink-soft);
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+.temp-bar-range {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.temp-bar-track {
+  position: relative;
+  height: 6px;
+  background: rgba(184, 138, 59, 0.18);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.temp-bar-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+}
+.temp-bar-fill.day {
+  background: linear-gradient(90deg, #d8b06a, #c96f2b);
+}
+.temp-bar-fill.night {
+  background: linear-gradient(90deg, #4a8a78, #163d34);
+}
+.temp-bar-dot {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+.temp-bar-dot.day { background: var(--navy); box-shadow: 0 0 0 2px var(--cream); }
+.temp-bar-dot.night { background: var(--navy); box-shadow: 0 0 0 2px var(--cream); }
+
+/* ---------- Modal-Sektionen mit Titel ---------- */
+
+.day-modal-section {
+  margin-top: 22px;
+}
+.day-modal-section-title {
+  margin: 0 0 10px;
+  font-size: 11px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+/* ---------- Stündliche Vorhersage ---------- */
+
+.hourly-strip {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding: 10px 2px;
+  background: var(--paper);
+  border: 1px solid rgba(184, 138, 59, 0.22);
+  border-radius: 14px;
+  -webkit-overflow-scrolling: touch;
+}
+.hourly-strip::-webkit-scrollbar { display: none; }
+.hourly-strip { scrollbar-width: none; }
+
+.hourly-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 38px;
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  font-variant-numeric: tabular-nums;
+}
+.hourly-temp {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink);
+}
+.hourly-bar {
+  position: relative;
+  width: 6px;
+  height: 36px;
+  background: rgba(184, 138, 59, 0.14);
+  border-radius: 999px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+.hourly-bar-fill {
+  width: 100%;
+  background: linear-gradient(180deg, #c96f2b, #d8b06a);
+  border-radius: 999px;
+  transition: height 0.4s var(--ease-out-soft);
+}
+.hourly-icon {
+  color: var(--gold);
+  display: inline-flex;
+}
+.hourly-hour {
+  font-size: 10px;
+  color: var(--ink-soft);
+  letter-spacing: 0.3px;
+}
+
+/* ---------- Sonnen-Bogen ---------- */
+
+.day-modal-sun {
+  background: var(--paper);
+  border: 1px solid rgba(184, 138, 59, 0.22);
+  border-radius: 14px;
+  padding: 14px 18px;
+}
+.sun-arc {
+  position: relative;
+}
+.sun-arc-svg {
+  display: block;
+  width: 100%;
+  height: 70px;
+}
+.sun-arc-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+.sun-arc-labels > span {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.sun-arc-label {
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.sun-arc-time {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--ink);
+  margin-top: 2px;
+}
+.day-modal-sun-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(184, 138, 59, 0.3);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.day-modal-sun-hint svg { color: var(--gold); flex: 0 0 auto; }
+.day-modal-sun-hint strong { color: var(--ink); font-weight: 700; }
+
+/* ---------- Wind-Kompass im Tile ---------- */
+
+.wind-compass {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.wind-compass-svg {
+  display: block;
+  width: 44px;
+  height: 44px;
+}
+
 .day-modal-details {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1500,6 +1693,22 @@ main { flex: 1; }
   .dmd-range-track { background: rgba(247, 236, 209, 0.18); }
   .dmd-range-dot { box-shadow: 0 0 0 2px #14253c; }
   .dmd-range-labels { color: var(--muted); }
+
+  .hourly-strip,
+  .day-modal-sun {
+    background: rgba(247, 236, 209, 0.05);
+    border-color: rgba(184, 138, 59, 0.22);
+  }
+  .hourly-temp { color: var(--ink); }
+  .hourly-bar { background: rgba(247, 236, 209, 0.12); }
+  .sun-arc-time { color: var(--ink); }
+  .day-modal-sun-hint strong { color: var(--ink); }
+  .temp-bar-track { background: rgba(247, 236, 209, 0.18); }
+  .temp-bar-dot.day,
+  .temp-bar-dot.night {
+    background: var(--cream);
+    box-shadow: 0 0 0 2px #14253c;
+  }
 
   /* Daten-Trennlinien dezenter */
   .data-list li + li {

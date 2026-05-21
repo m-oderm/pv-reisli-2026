@@ -41,8 +41,6 @@ import {
   Square,
   Sun,
   SunMedium,
-  Sunrise,
-  Sunset,
   Tent,
   Ticket,
   Train,
@@ -179,10 +177,12 @@ function deriveDays(data) {
     wind: d.wind_speed_10m_max?.[idx] ?? null,
     windP10: d.wind_speed_10m_max_p10?.[idx] ?? null,
     windP90: d.wind_speed_10m_max_p90?.[idx] ?? null,
+    windDir: d.wind_direction_10m_dominant?.[idx] ?? null,
     sunshineSec: d.sunshine_duration?.[idx] ?? null,
     daylightSec: d.daylight_duration?.[idx] ?? null,
     sunrise: d.sunrise?.[idx] ?? null,
     sunset: d.sunset?.[idx] ?? null,
+    hourly: extractHourlyForDay(data.hourly, iso),
     confidence: data.confidence_per_day?.[idx] ?? null
   }))
   // Solange Reisetage im Forecast auftauchen, blenden wir den Rest aus.
@@ -193,6 +193,29 @@ function deriveDays(data) {
 function rangeNumber(v, decimals) {
   if (typeof v !== 'number') return null
   return decimals > 0 ? v.toFixed(decimals).replace('.', ',') : String(Math.round(v))
+}
+
+function extractHourlyForDay(hourly, iso) {
+  if (!hourly?.time || !iso) return null
+  const points = []
+  for (let i = 0; i < hourly.time.length; i++) {
+    const ts = hourly.time[i]
+    if (typeof ts !== 'string' || ts.slice(0, 10) !== iso) continue
+    points.push({
+      hour: parseInt(ts.slice(11, 13), 10),
+      temp: hourly.temperature_2m?.[i] ?? null,
+      code: hourly.weather_code?.[i] ?? null,
+      pop: hourly.precipitation_probability?.[i] ?? null
+    })
+  }
+  return points.length > 0 ? points : null
+}
+
+const COMPASS_POINTS = ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW']
+function windDirectionLabel(deg) {
+  if (typeof deg !== 'number') return null
+  const idx = Math.round(((deg % 360) + 360) % 360 / 45) % 8
+  return COMPASS_POINTS[idx]
 }
 
 function confidenceLabel(value) {
@@ -617,7 +640,138 @@ function RangeBar({ low, high, value, unit, decimals = 0 }) {
   )
 }
 
-function DetailTile({ Icon, label, value, hint, range }) {
+function HourlyStrip({ points }) {
+  if (!points || points.length === 0) return null
+  const temps = points.map((p) => p.temp).filter((t) => typeof t === 'number')
+  if (temps.length === 0) return null
+  const min = Math.min(...temps)
+  const max = Math.max(...temps)
+  const span = Math.max(1, max - min)
+  return (
+    <div className="hourly-strip" role="list" aria-label="Stündliche Vorhersage">
+      {points.map((p) => {
+        const t = typeof p.temp === 'number' ? p.temp : null
+        const height = t == null ? 0 : ((t - min) / span) * 100
+        const info = weatherCodeToInfo(p.code ?? 2)
+        const Icon = info.Icon
+        return (
+          <div key={p.hour} className="hourly-cell" role="listitem">
+            <span className="hourly-temp">{t == null ? '–' : `${Math.round(t)}°`}</span>
+            <span className="hourly-bar" aria-hidden="true">
+              <span className="hourly-bar-fill" style={{ height: `${Math.max(8, height)}%` }} />
+            </span>
+            <span className="hourly-icon" aria-hidden="true"><Icon size={14} /></span>
+            <span className="hourly-hour">{String(p.hour).padStart(2, '0')}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function SunArc({ sunrise, sunset }) {
+  const rise = formatTimeOnly(sunrise)
+  const set = formatTimeOnly(sunset)
+  if (!rise && !set) return null
+  return (
+    <div className="sun-arc" role="img" aria-label={`Sonne ${rise || '–'} bis ${set || '–'}`}>
+      <svg viewBox="0 0 220 70" preserveAspectRatio="none" className="sun-arc-svg">
+        <defs>
+          <linearGradient id="sunArcGrad" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stopColor="#b88a3b" stopOpacity="0" />
+            <stop offset="100%" stopColor="#d8b06a" stopOpacity="0.85" />
+          </linearGradient>
+        </defs>
+        <path
+          d="M 20 60 Q 110 -20 200 60"
+          fill="none"
+          stroke="url(#sunArcGrad)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeDasharray="3 3"
+        />
+        <circle cx="20" cy="60" r="4" fill="#b88a3b" />
+        <circle cx="200" cy="60" r="4" fill="#b88a3b" />
+      </svg>
+      <div className="sun-arc-labels">
+        <span>
+          <span className="sun-arc-label">Aufgang</span>
+          <span className="sun-arc-time">{rise || '–'}</span>
+        </span>
+        <span>
+          <span className="sun-arc-label">Untergang</span>
+          <span className="sun-arc-time">{set || '–'}</span>
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function WindCompass({ deg, label }) {
+  if (typeof deg !== 'number') return null
+  return (
+    <div className="wind-compass" role="img" aria-label={`Windrichtung ${label || ''}`}>
+      <svg viewBox="0 0 40 40" className="wind-compass-svg">
+        <circle cx="20" cy="20" r="17" fill="none" stroke="rgba(184, 138, 59, 0.3)" strokeWidth="1.2" />
+        <text x="20" y="9" fontSize="6" textAnchor="middle" fill="var(--ink-soft)">N</text>
+        <text x="20" y="35" fontSize="6" textAnchor="middle" fill="var(--ink-soft)">S</text>
+        <text x="6" y="22" fontSize="6" textAnchor="middle" fill="var(--ink-soft)">W</text>
+        <text x="34" y="22" fontSize="6" textAnchor="middle" fill="var(--ink-soft)">O</text>
+        <g transform={`rotate(${deg} 20 20)`}>
+          <path d="M 20 6 L 24 22 L 20 19 L 16 22 Z" fill="var(--gold)" />
+        </g>
+      </svg>
+    </div>
+  )
+}
+
+function HeaderTempBar({ maxValue, maxP10, maxP90, minValue, minP10, minP90 }) {
+  // Doppelbalken: ein Track für Tag (rot-tönig), einer für Nacht (blau-tönig)
+  // Ein Punkt zeigt den Median, ein Balken die P10-P90-Spanne.
+  const haveDay = typeof maxP10 === 'number' && typeof maxP90 === 'number' && typeof maxValue === 'number'
+  const haveNight = typeof minP10 === 'number' && typeof minP90 === 'number' && typeof minValue === 'number'
+  if (!haveDay && !haveNight) return null
+
+  const allValues = [minP10, maxP10, minP90, maxP90].filter((v) => typeof v === 'number')
+  const lo = Math.floor(Math.min(...allValues))
+  const hi = Math.ceil(Math.max(...allValues))
+  const span = Math.max(1, hi - lo)
+  const pos = (v) => `${((v - lo) / span) * 100}%`
+  const width = (lowV, highV) => `${((highV - lowV) / span) * 100}%`
+
+  return (
+    <div className="temp-bars" aria-label={`Temperatur-Bandbreite zwischen ${lo}° und ${hi}°`}>
+      {haveNight && (
+        <div className="temp-bar-row" data-kind="night">
+          <span className="temp-bar-label">Nacht</span>
+          <span className="temp-bar-track" aria-hidden="true">
+            <span
+              className="temp-bar-fill night"
+              style={{ left: pos(minP10), width: width(minP10, minP90) }}
+            />
+            <span className="temp-bar-dot night" style={{ left: pos(minValue) }} />
+          </span>
+          <span className="temp-bar-range">{Math.round(minP10)}° bis {Math.round(minP90)}°</span>
+        </div>
+      )}
+      {haveDay && (
+        <div className="temp-bar-row" data-kind="day">
+          <span className="temp-bar-label">Tag</span>
+          <span className="temp-bar-track" aria-hidden="true">
+            <span
+              className="temp-bar-fill day"
+              style={{ left: pos(maxP10), width: width(maxP10, maxP90) }}
+            />
+            <span className="temp-bar-dot day" style={{ left: pos(maxValue) }} />
+          </span>
+          <span className="temp-bar-range">{Math.round(maxP10)}° bis {Math.round(maxP90)}°</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DetailTile({ Icon, label, value, hint, range, children }) {
   return (
     <div className="day-modal-detail">
       <span className="dmd-icon" aria-hidden="true"><Icon size={18} /></span>
@@ -627,6 +781,7 @@ function DetailTile({ Icon, label, value, hint, range }) {
         {hint && <span className="dmd-hint">{hint}</span>}
         {range}
       </span>
+      {children}
     </div>
   )
 }
@@ -646,9 +801,8 @@ function DayDetailModal({ day, onClose }) {
     return () => { document.body.style.overflow = previous }
   }, [])
 
-  const sunrise = formatTimeOnly(day.sunrise)
-  const sunset = formatTimeOnly(day.sunset)
   const windText = day.wind != null ? `${Math.round(day.wind)} km/h` : null
+  const windDirLabel = windDirectionLabel(day.windDir)
   const sunshine = formatSunshine(day.sunshineSec, day.daylightSec)
   const rainText = day.rain != null ? `${Math.round(day.rain)} %` : null
   const precipText = day.precipSum != null ? `${day.precipSum.toFixed(1)} mm` : null
@@ -693,42 +847,57 @@ function DayDetailModal({ day, onClose }) {
             <span className="day-modal-max">{tempMax != null ? `${tempMax}°` : 'k. A.'}</span>
             <span className="day-modal-min">{tempMin != null ? `${tempMin}°` : 'k. A.'}</span>
           </div>
-          {(day.maxP10 != null && day.maxP90 != null) || (day.minP10 != null && day.minP90 != null) ? (
-            <p className="day-modal-temp-range">
-              {day.maxP10 != null && day.maxP90 != null && (
-                <>Tag von {Math.round(day.maxP10)}° bis {Math.round(day.maxP90)}°</>
-              )}
-              {day.maxP10 != null && day.maxP90 != null && day.minP10 != null && day.minP90 != null && ', '}
-              {day.minP10 != null && day.minP90 != null && (
-                <>Nacht von {Math.round(day.minP10)}° bis {Math.round(day.minP90)}°</>
-              )}
-            </p>
-          ) : null}
+          <HeaderTempBar
+            maxValue={day.max}
+            maxP10={day.maxP10}
+            maxP90={day.maxP90}
+            minValue={day.min}
+            minP10={day.minP10}
+            minP90={day.minP90}
+          />
         </header>
 
-        <div className="day-modal-details">
-          <DetailTile Icon={Sunrise} label="Aufgang" value={sunrise} />
-          <DetailTile Icon={Sunset} label="Untergang" value={sunset} />
-          <DetailTile
-            Icon={Wind}
-            label="Wind"
-            value={windText}
-            range={<RangeBar low={day.windP10} high={day.windP90} value={day.wind} unit="km/h" />}
-          />
-          <DetailTile
-            Icon={SunMedium}
-            label="Sonne"
-            value={sunshine.value}
-            hint={sunshine.hint}
-          />
-          <DetailTile Icon={Umbrella} label="Regenrisiko" value={rainText} />
-          <DetailTile
-            Icon={Droplets}
-            label="Regenmenge"
-            value={precipText}
-            range={<RangeBar low={day.precipSumP10} high={day.precipSumP90} value={day.precipSum} unit="mm" decimals={1} />}
-          />
-        </div>
+        {day.hourly && (
+          <section className="day-modal-section" aria-label="Stündlicher Verlauf">
+            <h4 className="day-modal-section-title">Tagesverlauf</h4>
+            <HourlyStrip points={day.hourly} />
+          </section>
+        )}
+
+        <section className="day-modal-section" aria-label="Sonne">
+          <h4 className="day-modal-section-title">Sonne</h4>
+          <div className="day-modal-sun">
+            <SunArc sunrise={day.sunrise} sunset={day.sunset} />
+            {sunshine.value && (
+              <p className="day-modal-sun-hint">
+                <SunMedium size={14} aria-hidden="true" />
+                <span><strong>{sunshine.value}</strong> Sonnenschein{sunshine.hint ? `, ${sunshine.hint}` : ''}</span>
+              </p>
+            )}
+          </div>
+        </section>
+
+        <section className="day-modal-section" aria-label="Details">
+          <h4 className="day-modal-section-title">Details</h4>
+          <div className="day-modal-details">
+            <DetailTile
+              Icon={Wind}
+              label="Wind"
+              value={windText}
+              hint={windDirLabel ? `aus ${windDirLabel}` : null}
+              range={<RangeBar low={day.windP10} high={day.windP90} value={day.wind} unit="km/h" />}
+            >
+              <WindCompass deg={day.windDir} label={windDirLabel} />
+            </DetailTile>
+            <DetailTile Icon={Umbrella} label="Regenrisiko" value={rainText} />
+            <DetailTile
+              Icon={Droplets}
+              label="Regenmenge"
+              value={precipText}
+              range={<RangeBar low={day.precipSumP10} high={day.precipSumP90} value={day.precipSum} unit="mm" decimals={1} />}
+            />
+          </div>
+        </section>
 
         <footer className="day-modal-foot">
           <ConfidenceMeter value={day.confidence} />
