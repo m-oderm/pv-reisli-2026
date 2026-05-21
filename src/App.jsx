@@ -642,26 +642,21 @@ function RangeBar({ low, high, value, unit, decimals = 0 }) {
 
 function HourlyStrip({ points }) {
   if (!points || points.length === 0) return null
-  const temps = points.map((p) => p.temp).filter((t) => typeof t === 'number')
-  if (temps.length === 0) return null
-  const min = Math.min(...temps)
-  const max = Math.max(...temps)
-  const span = Math.max(1, max - min)
   return (
     <div className="hourly-strip" role="list" aria-label="Stündliche Vorhersage">
       {points.map((p) => {
-        const t = typeof p.temp === 'number' ? p.temp : null
-        const height = t == null ? 0 : ((t - min) / span) * 100
+        const temp = typeof p.temp === 'number' ? Math.round(p.temp) : null
         const info = weatherCodeToInfo(p.code ?? 2)
         const Icon = info.Icon
+        const showRain = typeof p.pop === 'number' && p.pop >= 30
         return (
           <div key={p.hour} className="hourly-cell" role="listitem">
-            <span className="hourly-temp">{t == null ? '–' : `${Math.round(t)}°`}</span>
-            <span className="hourly-bar" aria-hidden="true">
-              <span className="hourly-bar-fill" style={{ height: `${Math.max(8, height)}%` }} />
+            <span className="hourly-hour">{`${String(p.hour).padStart(2, '0')} Uhr`}</span>
+            <span className="hourly-icon" aria-hidden="true"><Icon size={22} /></span>
+            <span className={`hourly-pop${showRain ? '' : ' hourly-pop-empty'}`}>
+              {showRain ? `${Math.round(p.pop)} %` : ' '}
             </span>
-            <span className="hourly-icon" aria-hidden="true"><Icon size={14} /></span>
-            <span className="hourly-hour">{String(p.hour).padStart(2, '0')}</span>
+            <span className="hourly-temp">{temp == null ? '–' : `${temp}°`}</span>
           </div>
         )
       })}
@@ -725,6 +720,34 @@ function WindCompass({ deg, label }) {
   )
 }
 
+function WindCard({ value, p10, p90, deg, dirLabel }) {
+  if (typeof value !== 'number') return null
+  const showSpread = typeof p10 === 'number' && typeof p90 === 'number' && Math.abs(p90 - p10) >= 1
+  return (
+    <div className="wind-card">
+      <ul className="wind-list">
+        <li>
+          <span className="wind-label">Wind</span>
+          <span className="wind-value">{Math.round(value)} km/h</span>
+        </li>
+        {showSpread && (
+          <li>
+            <span className="wind-label">Spielraum</span>
+            <span className="wind-value">{Math.round(p10)} bis {Math.round(p90)} km/h</span>
+          </li>
+        )}
+        {dirLabel && (
+          <li>
+            <span className="wind-label">Richtung</span>
+            <span className="wind-value">aus {dirLabel}</span>
+          </li>
+        )}
+      </ul>
+      {typeof deg === 'number' && <WindCompass deg={deg} label={dirLabel} />}
+    </div>
+  )
+}
+
 function HeaderTempBar({ maxValue, maxP10, maxP90, minValue, minP10, minP90 }) {
   // Doppelbalken: ein Track für Tag (rot-tönig), einer für Nacht (blau-tönig)
   // Ein Punkt zeigt den Median, ein Balken die P10-P90-Spanne.
@@ -771,9 +794,9 @@ function HeaderTempBar({ maxValue, maxP10, maxP90, minValue, minP10, minP90 }) {
   )
 }
 
-function DetailTile({ Icon, label, value, hint, range, children }) {
+function DetailTile({ Icon, label, value, hint, range, children, wide }) {
   return (
-    <div className="day-modal-detail">
+    <div className={`day-modal-detail${wide ? ' dmd-wide' : ''}`}>
       <span className="dmd-icon" aria-hidden="true"><Icon size={18} /></span>
       <span className="dmd-text">
         <span className="dmd-label">{label}</span>
@@ -801,7 +824,6 @@ function DayDetailModal({ day, onClose }) {
     return () => { document.body.style.overflow = previous }
   }, [])
 
-  const windText = day.wind != null ? `${Math.round(day.wind)} km/h` : null
   const windDirLabel = windDirectionLabel(day.windDir)
   const sunshine = formatSunshine(day.sunshineSec, day.daylightSec)
   const rainText = day.rain != null ? `${Math.round(day.rain)} %` : null
@@ -830,14 +852,17 @@ function DayDetailModal({ day, onClose }) {
         aria-modal="true"
         aria-label={`Wetter-Details für ${day.label}`}
       >
-        <button
-          type="button"
-          className="day-modal-close"
-          onClick={onClose}
-          aria-label="Schliessen"
-        >
-          <X size={20} />
-        </button>
+        <div className="day-modal-toolbar">
+          <span className="day-modal-handle" aria-hidden="true" />
+          <button
+            type="button"
+            className="day-modal-close"
+            onClick={onClose}
+            aria-label="Schliessen"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
         <header className="day-modal-header">
           <p className="day-modal-day">{day.label}</p>
@@ -859,13 +884,19 @@ function DayDetailModal({ day, onClose }) {
 
         {day.hourly && (
           <section className="day-modal-section" aria-label="Stündlicher Verlauf">
-            <h4 className="day-modal-section-title">Tagesverlauf</h4>
+            <h4 className="day-modal-section-title">
+              <Clock size={12} aria-hidden="true" />
+              <span>Tagesverlauf</span>
+            </h4>
             <HourlyStrip points={day.hourly} />
           </section>
         )}
 
         <section className="day-modal-section" aria-label="Sonne">
-          <h4 className="day-modal-section-title">Sonne</h4>
+          <h4 className="day-modal-section-title">
+            <SunMedium size={12} aria-hidden="true" />
+            <span>Sonne</span>
+          </h4>
           <div className="day-modal-sun">
             <SunArc sunrise={day.sunrise} sunset={day.sunset} />
             {sunshine.value && (
@@ -877,18 +908,28 @@ function DayDetailModal({ day, onClose }) {
           </div>
         </section>
 
-        <section className="day-modal-section" aria-label="Details">
-          <h4 className="day-modal-section-title">Details</h4>
+        {typeof day.wind === 'number' && (
+          <section className="day-modal-section" aria-label="Wind">
+            <h4 className="day-modal-section-title">
+              <Wind size={12} aria-hidden="true" />
+              <span>Wind</span>
+            </h4>
+            <WindCard
+              value={day.wind}
+              p10={day.windP10}
+              p90={day.windP90}
+              deg={day.windDir}
+              dirLabel={windDirLabel}
+            />
+          </section>
+        )}
+
+        <section className="day-modal-section" aria-label="Niederschlag">
+          <h4 className="day-modal-section-title">
+            <Umbrella size={12} aria-hidden="true" />
+            <span>Niederschlag</span>
+          </h4>
           <div className="day-modal-details">
-            <DetailTile
-              Icon={Wind}
-              label="Wind"
-              value={windText}
-              hint={windDirLabel ? `aus ${windDirLabel}` : null}
-              range={<RangeBar low={day.windP10} high={day.windP90} value={day.wind} unit="km/h" />}
-            >
-              <WindCompass deg={day.windDir} label={windDirLabel} />
-            </DetailTile>
             <DetailTile Icon={Umbrella} label="Regenrisiko" value={rainText} />
             <DetailTile
               Icon={Droplets}
