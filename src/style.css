@@ -1479,26 +1479,14 @@ main { flex: 1; }
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
-.wind-list li.wind-spread {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 4px;
-}
-.wind-list li.wind-spread .dmd-range {
-  margin-top: 0;
-}
 
 .wind-compass {
   flex: 0 0 auto;
 }
 .wind-compass-svg {
   display: block;
-  width: 44px;
-  height: 44px;
-}
-.wind-card .wind-compass-svg {
-  width: 72px;
-  height: 72px;
+  width: 96px;
+  height: 96px;
 }
 
 .day-modal-details {

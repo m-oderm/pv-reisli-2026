@@ -702,19 +702,39 @@ function SunArc({ sunrise, sunset }) {
   )
 }
 
-function WindCompass({ deg, label }) {
+function WindCompass({ deg, value, label }) {
   if (typeof deg !== 'number') return null
+  const hasValue = typeof value === 'number'
   return (
     <div className="wind-compass" role="img" aria-label={`Windrichtung ${label || ''}`}>
-      <svg viewBox="0 0 40 40" className="wind-compass-svg">
-        <circle cx="20" cy="20" r="17" fill="none" stroke="rgba(184, 138, 59, 0.3)" strokeWidth="1.2" />
-        <text x="20" y="9" fontSize="6" textAnchor="middle" fill="var(--ink-soft)">N</text>
-        <text x="20" y="35" fontSize="6" textAnchor="middle" fill="var(--ink-soft)">S</text>
-        <text x="6" y="22" fontSize="6" textAnchor="middle" fill="var(--ink-soft)">W</text>
-        <text x="34" y="22" fontSize="6" textAnchor="middle" fill="var(--ink-soft)">O</text>
-        <g transform={`rotate(${deg} 20 20)`}>
-          <path d="M 20 6 L 24 22 L 20 19 L 16 22 Z" fill="var(--gold)" />
+      <svg viewBox="0 0 60 60" className="wind-compass-svg">
+        <circle cx="30" cy="30" r="26" fill="none" stroke="rgba(184, 138, 59, 0.32)" strokeWidth="1.2" />
+        <circle cx="30" cy="30" r="20" fill="none" stroke="rgba(184, 138, 59, 0.18)" strokeWidth="0.8" strokeDasharray="2 3" />
+        <text x="30" y="12" fontSize="6" textAnchor="middle" fill="var(--ink-soft)" fontWeight="600">N</text>
+        <text x="30" y="54" fontSize="6" textAnchor="middle" fill="var(--ink-soft)" fontWeight="600">S</text>
+        <text x="9" y="32" fontSize="6" textAnchor="middle" fill="var(--ink-soft)" fontWeight="600">W</text>
+        <text x="51" y="32" fontSize="6" textAnchor="middle" fill="var(--ink-soft)" fontWeight="600">O</text>
+        <g transform={`rotate(${deg} 30 30)`}>
+          <path d="M 30 10 L 34 28 L 30 25 L 26 28 Z" fill="var(--gold)" />
         </g>
+        {hasValue && (
+          <>
+            <text
+              x="30"
+              y="33"
+              fontSize="11"
+              textAnchor="middle"
+              fontFamily="'Playfair Display', Georgia, serif"
+              fontWeight="700"
+              fill="var(--ink)"
+            >
+              {Math.round(value)}
+            </text>
+            <text x="30" y="40" fontSize="4" textAnchor="middle" fill="var(--ink-soft)">
+              km/h
+            </text>
+          </>
+        )}
       </svg>
     </div>
   )
@@ -731,9 +751,9 @@ function WindCard({ value, p10, p90, deg, dirLabel }) {
           <span className="wind-value">{Math.round(value)} km/h</span>
         </li>
         {showSpread && (
-          <li className="wind-spread">
+          <li>
             <span className="wind-label">Spielraum</span>
-            <RangeBar low={p10} high={p90} value={value} unit="km/h" />
+            <span className="wind-value">{Math.round(p10)} bis {Math.round(p90)} km/h</span>
           </li>
         )}
         {dirLabel && (
@@ -743,7 +763,9 @@ function WindCard({ value, p10, p90, deg, dirLabel }) {
           </li>
         )}
       </ul>
-      {typeof deg === 'number' && <WindCompass deg={deg} label={dirLabel} />}
+      {typeof deg === 'number' && (
+        <WindCompass deg={deg} value={value} label={dirLabel} />
+      )}
     </div>
   )
 }

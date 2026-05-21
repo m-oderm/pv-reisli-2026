@@ -244,6 +244,20 @@ function quantile(sorted, q) {
 }
 
 /**
+ * Filtert hourly-Indizes auf jene zwischen Sonnenaufgang und Sonnenuntergang.
+ * Die Zeiten sind ISO-Strings ohne Zeitzone (Open-Meteo liefert sie in der
+ * angefragten Zeitzone), lexikographischer Vergleich entspricht
+ * chronologischer Reihenfolge.
+ */
+function filterToDaylight(hourIdxs, times, sunrise, sunset) {
+  if (!hourIdxs || !Array.isArray(times) || !sunrise || !sunset) return null
+  return hourIdxs.filter((i) => {
+    const t = times[i]
+    return typeof t === 'string' && t >= sunrise && t <= sunset
+  })
+}
+
+/**
  * Wählt aus mehreren Members den repräsentativen Wetter-Code eines Tages.
  *
  * Vorgehen:
@@ -358,7 +372,14 @@ function composeDaily(forecast, ensemble) {
     const s = stats.get(date)
 
     const hourIdxs = hoursByDate.get(date)
-    const ensembleCode = hourIdxs ? dominantWeatherCode(codeMembers, hourIdxs) : null
+    // Code-Auswahl nur über Tagstunden, damit Niederschlag in der Nacht das
+    // Vorschau-Icon nicht dominiert. Reisende wollen wissen wie das Wetter
+    // tagsüber wird.
+    const sunrise = fDaily.sunrise?.[i] ?? null
+    const sunset = fDaily.sunset?.[i] ?? null
+    const daylightIdxs = filterToDaylight(hourIdxs, ensemble?.hourly?.time, sunrise, sunset)
+    const codeIdxs = daylightIdxs?.length ? daylightIdxs : hourIdxs
+    const ensembleCode = codeIdxs ? dominantWeatherCode(codeMembers, codeIdxs) : null
     out.weather_code.push(ensembleCode ?? fDaily.weather_code?.[i] ?? null)
 
     out.temperature_2m_max.push(roundOneDecimal(s?.tMax.p50))
