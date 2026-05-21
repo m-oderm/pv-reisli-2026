@@ -543,11 +543,11 @@ function collectAtHour(memberSeries, hourIdx) {
 
 function composeNote(useTripRange, ensembleActive) {
   const lead = ensembleActive
-    ? 'Aufklärung läuft: über 100 Modellläufe gemessen, gewogen, gemittelt'
+    ? 'Über 100 Modellläufe gemessen, gewogen, gemittelt. Das Bier dazu war Pflicht'
     : 'Wetterlage gemeldet'
   return useTripRange
-    ? `${lead}. Tag antippen für das Detail-Briefing. Ziel bleibt geheim.`
-    : `${lead}. Akte wird tagesweise schärfer. Tag antippen für Details. Ziel bleibt geheim.`
+    ? `${lead}. Tag antippen für das Detail-Briefing.`
+    : `${lead}. Akte wird tagesweise schärfer. Tag antippen für Details.`
 }
 
 function jsonResponse(data, status = 200, extraHeaders = {}) {
