@@ -542,10 +542,12 @@ function collectAtHour(memberSeries, hourIdx) {
 }
 
 function composeNote(useTripRange, ensembleActive) {
-  const dataset = ensembleActive ? 'Ensemble-Forecast' : 'Best-Match-Forecast'
+  const lead = ensembleActive
+    ? 'Aufklärung läuft: über 100 Modellläufe gemessen, gewogen, gemittelt'
+    : 'Wetterlage gemeldet'
   return useTripRange
-    ? `${dataset} aktiv. Das Ziel bleibt geheim.`
-    : `${dataset} wird tagesweise verfügbar. Das Ziel bleibt geheim.`
+    ? `${lead}. Tag antippen für das Detail-Briefing. Ziel bleibt geheim.`
+    : `${lead}. Akte wird tagesweise schärfer. Tag antippen für Details. Ziel bleibt geheim.`
 }
 
 function jsonResponse(data, status = 200, extraHeaders = {}) {
