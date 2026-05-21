@@ -155,23 +155,39 @@ function smoothScrollTo(id) {
 
 function deriveDays(data) {
   if (!data?.daily?.time) return []
-  const all = data.daily.time.map((iso, idx) => ({
+  const d = data.daily
+  const all = d.time.map((iso, idx) => ({
     iso,
     label: formatGermanDay(iso),
-    info: weatherCodeToInfo(data.daily.weather_code?.[idx] ?? 2),
-    max: data.daily.temperature_2m_max?.[idx],
-    min: data.daily.temperature_2m_min?.[idx],
-    rain: data.daily.precipitation_probability_max?.[idx],
-    precipSum: data.daily.precipitation_sum?.[idx] ?? null,
-    wind: data.daily.wind_speed_10m_max?.[idx] ?? null,
-    uv: data.daily.uv_index_max?.[idx] ?? null,
-    sunrise: data.daily.sunrise?.[idx] ?? null,
-    sunset: data.daily.sunset?.[idx] ?? null,
+    info: weatherCodeToInfo(d.weather_code?.[idx] ?? 2),
+    max: d.temperature_2m_max?.[idx],
+    maxP10: d.temperature_2m_max_p10?.[idx] ?? null,
+    maxP90: d.temperature_2m_max_p90?.[idx] ?? null,
+    min: d.temperature_2m_min?.[idx],
+    minP10: d.temperature_2m_min_p10?.[idx] ?? null,
+    minP90: d.temperature_2m_min_p90?.[idx] ?? null,
+    rain: d.precipitation_probability_max?.[idx],
+    precipSum: d.precipitation_sum?.[idx] ?? null,
+    precipSumP10: d.precipitation_sum_p10?.[idx] ?? null,
+    precipSumP90: d.precipitation_sum_p90?.[idx] ?? null,
+    wind: d.wind_speed_10m_max?.[idx] ?? null,
+    windP10: d.wind_speed_10m_max_p10?.[idx] ?? null,
+    windP90: d.wind_speed_10m_max_p90?.[idx] ?? null,
+    uv: d.uv_index_max?.[idx] ?? null,
+    sunrise: d.sunrise?.[idx] ?? null,
+    sunset: d.sunset?.[idx] ?? null,
     confidence: data.confidence_per_day?.[idx] ?? null
   }))
   // Solange Reisetage im Forecast auftauchen, blenden wir den Rest aus.
   const trip = all.filter((day) => TRAVEL_DATES.includes(day.iso))
   return trip.length > 0 ? trip : all
+}
+
+function formatRange(low, high, unit, decimals = 0) {
+  if (typeof low !== 'number' || typeof high !== 'number') return null
+  if (Math.abs(high - low) < (decimals > 0 ? 0.05 : 0.5)) return null
+  const fmt = (v) => decimals > 0 ? v.toFixed(decimals) : Math.round(v)
+  return `${fmt(low)} bis ${fmt(high)}${unit ? ` ${unit}` : ''}`
 }
 
 function confidenceLabel(value) {
@@ -571,13 +587,14 @@ function WeatherDay({ day, onOpen }) {
   )
 }
 
-function DetailTile({ Icon, label, value }) {
+function DetailTile({ Icon, label, value, range }) {
   return (
     <div className="day-modal-detail">
       <span className="dmd-icon" aria-hidden="true"><Icon size={18} /></span>
       <span className="dmd-text">
         <span className="dmd-label">{label}</span>
         <span className="dmd-value">{value ?? 'k. A.'}</span>
+        {range && <span className="dmd-range">Bandbreite {range}</span>}
       </span>
     </div>
   )
@@ -601,9 +618,13 @@ function DayDetailModal({ day, onClose }) {
   const sunrise = formatTimeOnly(day.sunrise)
   const sunset = formatTimeOnly(day.sunset)
   const windText = day.wind != null ? `${Math.round(day.wind)} km/h` : null
+  const windRange = formatRange(day.windP10, day.windP90, 'km/h')
   const uvText = day.uv != null ? uvLabel(day.uv) : null
   const rainText = day.rain != null ? `${Math.round(day.rain)} %` : null
   const precipText = day.precipSum != null ? `${day.precipSum.toFixed(1)} mm` : null
+  const precipRange = formatRange(day.precipSumP10, day.precipSumP90, 'mm', 1)
+  const maxRange = formatRange(day.maxP10, day.maxP90, '°')
+  const minRange = formatRange(day.minP10, day.minP90, '°')
 
   return (
     <motion.div
@@ -643,15 +664,22 @@ function DayDetailModal({ day, onClose }) {
             <span className="day-modal-max">{Math.round(day.max ?? 0)}°</span>
             <span className="day-modal-min">{Math.round(day.min ?? 0)}°</span>
           </div>
+          {(maxRange || minRange) && (
+            <p className="day-modal-temp-range">
+              {maxRange && <>tagsüber {maxRange}</>}
+              {maxRange && minRange && <>, </>}
+              {minRange && <>nachts {minRange}</>}
+            </p>
+          )}
         </header>
 
         <div className="day-modal-details">
           <DetailTile Icon={Sunrise} label="Aufgang" value={sunrise} />
           <DetailTile Icon={Sunset} label="Untergang" value={sunset} />
-          <DetailTile Icon={Wind} label="Wind" value={windText} />
+          <DetailTile Icon={Wind} label="Wind" value={windText} range={windRange} />
           <DetailTile Icon={SunMedium} label="UV-Index" value={uvText} />
           <DetailTile Icon={Umbrella} label="Regenrisiko" value={rainText} />
-          <DetailTile Icon={Droplets} label="Regenmenge" value={precipText} />
+          <DetailTile Icon={Droplets} label="Regenmenge" value={precipText} range={precipRange} />
         </div>
 
         <footer className="day-modal-foot">

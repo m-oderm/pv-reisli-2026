@@ -1243,6 +1243,12 @@ main { flex: 1; }
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+.day-modal-temp-range {
+  margin: 10px 0 0;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  color: var(--ink-soft);
+}
 
 .day-modal-details {
   display: grid;
@@ -1296,6 +1302,15 @@ main { flex: 1; }
   font-size: 15px;
   color: var(--ink);
   margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dmd-range {
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
@@ -1449,6 +1464,8 @@ main { flex: 1; }
     border-color: rgba(184, 138, 59, 0.22);
   }
   .dmd-value { color: var(--ink); }
+  .dmd-range,
+  .day-modal-temp-range { color: var(--muted); }
 
   /* Daten-Trennlinien dezenter */
   .data-list li + li {
