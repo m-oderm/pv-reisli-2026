@@ -1856,7 +1856,7 @@ main { flex: 1; }
   --gold: #facc15;         /* Warn-Gelb */
   --gold-soft: #fde047;
   --gold-deep: #ca8a04;
-  --orange: #ff7a3a;       /* Akten-Orange */
+  --orange: #facc15;       /* Akten-Orange */
   --green: #022c1a;
 
   background: #050a05;
@@ -1937,20 +1937,20 @@ main { flex: 1; }
   color: #d1fae5;
 }
 
-/* Ribbon: Akten-Stempel TOP SECRET in kraeftigem Aktenrot */
+/* Ribbon: Warn-Gelb statt Rot (Rot-Gruen-Schwaeche sicher) */
 .app.secret-mode .ribbon {
-  background: linear-gradient(180deg, #c52a1f 0%, #8a160e 100%);
-  color: #fef2f2;
+  background: linear-gradient(180deg, #facc15 0%, #b8870a 100%);
+  color: #1a1a05;
   box-shadow:
-    0 0 0 1px rgba(74, 222, 128, 0.35),
-    0 14px 28px -10px rgba(197, 42, 31, 0.4),
+    0 0 0 1px rgba(74, 222, 128, 0.3),
+    0 14px 28px -10px rgba(250, 204, 21, 0.35),
     0 4px 12px -4px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 244, 224, 0.32),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.4);
+    inset 0 1px 0 rgba(255, 255, 240, 0.45),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.25);
 }
 .app.secret-mode .ribbon::before,
 .app.secret-mode .ribbon::after {
-  background: linear-gradient(180deg, #8a160e, #4a0c08);
+  background: linear-gradient(180deg, #b8870a, #6b5208);
 }
 
 /* Hauptkarten: einheitlich dunkler Hintergrund mit dezentem Glow-Border */
@@ -1971,10 +1971,10 @@ main { flex: 1; }
 .app.secret-mode .card-orange {
   background: rgba(8, 14, 6, 0.92);
   color: #d1fae5;
-  border-color: rgba(255, 122, 58, 0.55);
+  border-color: rgba(250, 204, 21, 0.55);
 }
 .app.secret-mode .card-orange::after {
-  border-color: rgba(255, 122, 58, 0.35);
+  border-color: rgba(250, 204, 21, 0.35);
 }
 
 /* Kicker und Labels */
@@ -2026,7 +2026,7 @@ main { flex: 1; }
 .app.secret-mode .wd-max { color: #d1fae5; }
 .app.secret-mode .wd-min { color: #86efac; }
 .app.secret-mode .wd-label { color: #86efac; }
-.app.secret-mode .wd-rain { color: #ff7a3a; }
+.app.secret-mode .wd-rain { color: #facc15; }
 .app.secret-mode .wd-confidence { color: #86efac; }
 .app.secret-mode .wd-confidence strong { color: #d1fae5; }
 .app.secret-mode .wd-conf-dot { background: rgba(74, 222, 128, 0.22); }
@@ -2055,9 +2055,9 @@ main { flex: 1; }
 /* Dresscode */
 .app.secret-mode .polo-caption { color: #facc15; }
 .app.secret-mode .polo-stamp {
-  border-color: rgba(255, 122, 58, 0.7);
-  color: #ff7a3a;
-  background: rgba(255, 122, 58, 0.08);
+  border-color: rgba(250, 204, 21, 0.7);
+  color: #facc15;
+  background: rgba(250, 204, 21, 0.08);
 }
 .app.secret-mode .bullets li {
   background: rgba(74, 222, 128, 0.06);
@@ -2105,18 +2105,18 @@ main { flex: 1; }
 
 /* Outdoor Accordion */
 .app.secret-mode .leave-icon {
-  background: rgba(255, 122, 58, 0.16);
-  color: #ff7a3a;
+  background: rgba(250, 204, 21, 0.16);
+  color: #facc15;
 }
 .app.secret-mode .leave-icon::after {
-  background: #ff7a3a;
+  background: #facc15;
   box-shadow: 0 0 0 1.5px #050a05;
 }
 .app.secret-mode .leave-title {
   color: #d1fae5;
-  text-decoration-color: rgba(255, 122, 58, 0.85);
+  text-decoration-color: rgba(250, 204, 21, 0.85);
 }
-.app.secret-mode .leave-label { color: #ff7a3a; }
+.app.secret-mode .leave-label { color: #facc15; }
 .app.secret-mode .leave-chevron { color: #86efac; }
 .app.secret-mode .leave-card.is-open .leave-chevron { color: #facc15; }
 .app.secret-mode .leave-detail { color: #d1fae5; }
@@ -2124,9 +2124,9 @@ main { flex: 1; }
   border-top-color: rgba(74, 222, 128, 0.32);
 }
 .app.secret-mode .leave-badge {
-  background: rgba(255, 122, 58, 0.14);
-  border-color: rgba(255, 122, 58, 0.45);
-  color: #ff7a3a;
+  background: rgba(250, 204, 21, 0.14);
+  border-color: rgba(250, 204, 21, 0.45);
+  color: #facc15;
 }
 
 /* Wichtig kvline Cards: Texte heller */
@@ -2134,8 +2134,8 @@ main { flex: 1; }
 .app.secret-mode .kvline svg { color: #facc15; }
 .app.secret-mode .wichtig-primary .kvline svg { color: #facc15; }
 .app.secret-mode .card-orange .kvline h3 { color: #d1fae5; }
-.app.secret-mode .card-orange .kvline svg { color: #ff7a3a; }
-.app.secret-mode .card-orange .muted { color: rgba(255, 122, 58, 0.78); }
+.app.secret-mode .card-orange .kvline svg { color: #facc15; }
+.app.secret-mode .card-orange .muted { color: rgba(250, 204, 21, 0.78); }
 
 /* Modal */
 .app.secret-mode .day-modal-overlay {
