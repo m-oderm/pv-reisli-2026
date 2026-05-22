@@ -1555,14 +1555,9 @@ main { flex: 1; }
 .hourly-pop {
   font-size: 10px;
   color: var(--orange);
-  font-variant-numeric: lining-nums tabular-nums;
+  font-variant-numeric: tabular-nums;
   min-height: 12px;
   letter-spacing: 0.2px;
-  transition: opacity 0.18s var(--ease-smooth);
-}
-.hourly-pop.is-soft {
-  opacity: 0.42;
-  font-weight: 500;
 }
 .hourly-pop-empty { opacity: 0; }
 .hourly-temp {

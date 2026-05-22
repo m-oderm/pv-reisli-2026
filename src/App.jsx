@@ -677,7 +677,6 @@ function RangeBar({ low, high, value, unit, decimals = 0 }) {
 
 const DRAG_THRESHOLD_PX = 3
 const HOURLY_POP_DISPLAY_THRESHOLD = 30
-const HOURLY_POP_SOFT_THRESHOLD = 5
 
 let bodyScrollLockCount = 0
 let bodyScrollLockPrevious = ''
@@ -764,16 +763,13 @@ function HourlyStrip({ points }) {
         const temp = typeof p.temp === 'number' ? Math.round(p.temp) : null
         const info = weatherCodeToInfo(p.code ?? 2, p.isNight)
         const Icon = info.Icon
-        const hasPop = typeof p.pop === 'number' && p.pop >= HOURLY_POP_SOFT_THRESHOLD
-        const isSoft = hasPop && p.pop < HOURLY_POP_DISPLAY_THRESHOLD
+        const showRain = typeof p.pop === 'number' && p.pop >= HOURLY_POP_DISPLAY_THRESHOLD
         return (
           <div key={p.hour} className="hourly-cell" role="listitem">
             <span className="hourly-hour">{`${String(p.hour).padStart(2, '0')} Uhr`}</span>
             <span className="hourly-icon" aria-hidden="true"><Icon size={22} /></span>
-            <span
-              className={`hourly-pop${hasPop ? '' : ' hourly-pop-empty'}${isSoft ? ' is-soft' : ''}`}
-            >
-              {hasPop ? `${Math.round(p.pop)} %` : ' '}
+            <span className={`hourly-pop${showRain ? '' : ' hourly-pop-empty'}`}>
+              {showRain ? `${Math.round(p.pop)} %` : ' '}
             </span>
             <span className="hourly-temp">{temp == null ? 'k. A.' : `${temp}°`}</span>
           </div>
