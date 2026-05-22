@@ -1192,7 +1192,6 @@ main { flex: 1; }
 
 .wichtig-primary .kvline h3 { font-size: 22px; }
 .wichtig-primary .kvline svg { color: var(--gold-soft); }
-.wichtig-primary { box-shadow: var(--shadow-hover); }
 
 
 .kvline { display: flex; gap: 14px; align-items: flex-start; }
