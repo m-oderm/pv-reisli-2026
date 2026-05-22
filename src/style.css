@@ -2307,6 +2307,7 @@ main { flex: 1; }
     color: var(--muted);
   }
   .pack-cat-title { color: var(--ink); }
+  .pack-progress-text strong { color: var(--ink); }
 
   /* Wetter-Detail-Modal im dunklen Modus */
   .day-modal {
