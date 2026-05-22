@@ -1186,15 +1186,13 @@ main { flex: 1; }
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 22px;
 }
-.wichtig-grid .wichtig-primary {
-  grid-column: 1 / -1;
-}
 @media (max-width: 720px) {
   .wichtig-grid { grid-template-columns: 1fr; gap: 16px; }
 }
 
-.wichtig-primary .kvline h3 { font-size: 24px; }
+.wichtig-primary .kvline h3 { font-size: 22px; }
 .wichtig-primary .kvline svg { color: var(--gold-soft); }
+.wichtig-primary { box-shadow: var(--shadow-hover); }
 
 .wichtig-warn {
   position: relative;
