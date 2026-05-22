@@ -2009,8 +2009,9 @@ main { flex: 1; }
 .app.secret-mode .leader-nick { color: #facc15; }
 .app.secret-mode .leader-role { color: #86efac; }
 .app.secret-mode .leader-avatar {
-  background: linear-gradient(135deg, #facc15, #ff7a3a);
+  background: linear-gradient(135deg, #4ade80, #16a34a);
   color: #050a05;
+  box-shadow: 0 0 18px rgba(74, 222, 128, 0.4);
 }
 
 /* Wetter */
