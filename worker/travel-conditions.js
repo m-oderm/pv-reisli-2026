@@ -294,24 +294,30 @@ function hybridWeatherCode(codes) {
 }
 
 /**
- * Aggregiert pro Member den Tageshöchst-Code (worst hour of day) und
- * leitet daraus den repräsentativen Tages-Code via hybridWeatherCode ab.
+ * Bildet den Tages-Code zweistufig:
+ *   1. Pro Stunde: hybridWeatherCode über alle Members.
+ *   2. Über alle Tagstunden: hybridWeatherCode erneut.
+ *
+ * Vorteil gegenüber «worst-hour-per-Member»: ein Tag mit z. B. 9 sonnigen
+ * Stunden und 7 Schauer-Stunden zeigt jetzt «Regenschauer» statt
+ * «leichter Regen». Der Daily-Code spiegelt das Tageserlebnis statt
+ * «irgendwann am Tag Niederschlag».
  */
 function dominantWeatherCode(memberSeries, hourIdxs) {
-  if (!Array.isArray(memberSeries) || memberSeries.length === 0) return null
-  const dayMax = []
-  for (const series of memberSeries) {
-    if (!Array.isArray(series)) continue
-    let max = null
-    for (const i of hourIdxs) {
-      const v = series[i]
-      if (typeof v === 'number' && !Number.isNaN(v) && (max === null || v > max)) {
-        max = v
-      }
-    }
-    if (max !== null) dayMax.push(max)
+  if (!Array.isArray(memberSeries) || memberSeries.length === 0 || !hourIdxs?.length) {
+    return null
   }
-  return hybridWeatherCode(dayMax)
+  const hourlyCodes = []
+  for (const idx of hourIdxs) {
+    const codes = []
+    for (const series of memberSeries) {
+      const v = series?.[idx]
+      if (typeof v === 'number' && !Number.isNaN(v)) codes.push(v)
+    }
+    const hourCode = hybridWeatherCode(codes)
+    if (hourCode !== null) hourlyCodes.push(hourCode)
+  }
+  return hybridWeatherCode(hourlyCodes)
 }
 
 /**
