@@ -398,7 +398,6 @@ function Nav({ onToggleSecret }) {
           <BrandLogo size={38} />
           <span className="brand-text">
             <span className="brand-name">Pegelspitze Reisen</span>
-            <span className="brand-sub">PV-Reisli 2026</span>
           </span>
         </button>
         <button
