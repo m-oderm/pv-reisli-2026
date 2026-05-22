@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence, MotionConfig, useDragControls, useReducedMotion } from 'framer-motion'
 import {
   Beer,
@@ -363,16 +363,38 @@ function BrandLogo({ size = 44 }) {
   )
 }
 
-function Nav() {
+function Nav({ onToggleSecret }) {
   const [open, setOpen] = useState(false)
+  const clickCountRef = useRef(0)
+  const resetTimerRef = useRef(null)
+
+  useEffect(() => () => {
+    if (resetTimerRef.current) clearTimeout(resetTimerRef.current)
+  }, [])
+
   const handleClick = (id) => {
     setOpen(false)
     smoothScrollTo(id)
   }
+
+  const handleBrandClick = () => {
+    smoothScrollTo('hero')
+    clickCountRef.current += 1
+    if (resetTimerRef.current) clearTimeout(resetTimerRef.current)
+    if (clickCountRef.current >= SECRET_TRIGGER_CLICKS) {
+      clickCountRef.current = 0
+      onToggleSecret?.()
+      return
+    }
+    resetTimerRef.current = setTimeout(() => {
+      clickCountRef.current = 0
+    }, SECRET_RESET_MS)
+  }
+
   return (
     <header className="nav">
       <div className="nav-inner">
-        <button className="brand" onClick={() => smoothScrollTo('hero')} aria-label="Zum Anfang">
+        <button className="brand" onClick={handleBrandClick} aria-label="Zum Anfang">
           <BrandLogo size={38} />
           <span className="brand-text">
             <span className="brand-name">Pegelspitze Reisen</span>
@@ -424,11 +446,12 @@ function Ribbon({ children }) {
 }
 
 function Hero() {
+  const secret = useSecretMode()
   return (
     <section id="hero" className="hero">
       <div className="hero-frame">
         <div className="hero-stamp" aria-hidden="true">
-          <Lock size={14} /> Geheime Mission · 30.05.2026
+          <Lock size={14} /> {secret ? 'KLASSIFIZIERT · OPERATION 30.05.2026' : 'Geheime Mission · 30.05.2026'}
         </div>
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
@@ -443,7 +466,10 @@ function Hero() {
         <Ribbon>Es wird ernst!</Ribbon>
 
         <p className="hero-note">
-          <Sparkles size={14} /> Die falsche Fährte war Absicht <span aria-hidden="true">;)</span>
+          <Sparkles size={14} />{' '}
+          {secret
+            ? 'Tarnung erfolgreich. Quelle verlässlich.'
+            : <>Die falsche Fährte war Absicht <span aria-hidden="true">;)</span></>}
         </p>
 
         <div className="hero-quickfacts">
@@ -501,9 +527,10 @@ const ECKDATEN_ROWS = [
 ]
 
 function Eckdaten() {
+  const secret = useSecretMode()
   return (
     <section id="eckdaten" className="section">
-      <SectionTitle icon={Ticket} kicker="Mission Briefing" title="Eckdaten" />
+      <SectionTitle icon={Ticket} kicker={secret ? 'BRIEFING · KLASSIFIZIERT' : 'Mission Briefing'} title="Eckdaten" />
       <Card className="card-cream">
         <ul className="data-list">
           {ECKDATEN_ROWS.map(({ Icon, label, value }) => (
@@ -528,13 +555,14 @@ const COUNTDOWN_BLOCKS = [
 
 function CountdownSection() {
   const time = useCountdown(COUNTDOWN_TARGET_MS)
+  const secret = useSecretMode()
   return (
     <section id="countdown" className="section">
-      <SectionTitle icon={Clock} kicker="T minus" title="Countdown bis Abmarsch" />
+      <SectionTitle icon={Clock} kicker={secret ? 'T-MINUS · COUNTDOWN AKTIV' : 'T minus'} title="Countdown bis Abmarsch" />
       <Card className="card-navy">
         {time.done ? (
           <p className="countdown-done">
-            <Sparkles size={20} /> Mission läuft.
+            <Sparkles size={20} /> {secret ? 'STATUS: MISSION AKTIV.' : 'Mission läuft.'}
           </p>
         ) : (
           <div className="countdown-grid">
@@ -583,9 +611,10 @@ const CREW = [
 ]
 
 function Reiseleitung() {
+  const secret = useSecretMode()
   return (
     <section id="reiseleitung" className="section">
-      <SectionTitle icon={Users} kicker="Im Einsatz" title="Reiseleitung" />
+      <SectionTitle icon={Users} kicker={secret ? 'PERSONAL · KLASSIFIZIERT' : 'Im Einsatz'} title="Reiseleitung" />
       <div className="grid-2">
         {CREW.map((person, idx) => (
           <Card key={person.nick} delay={idx * 0.1}>
@@ -677,6 +706,16 @@ function RangeBar({ low, high, value, unit, decimals = 0 }) {
 
 const DRAG_THRESHOLD_PX = 3
 const HOURLY_POP_DISPLAY_THRESHOLD = 30
+
+const SECRET_MODE_KEY = 'pv-reisli-secret-mode'
+const SECRET_TRIGGER_CLICKS = 5
+const SECRET_RESET_MS = 1500
+const SECRET_TOAST_MS = 3000
+const SECRET_TOAST_ON = 'Verdeckter Zugriff erkannt. Geheimmodus aktiviert.'
+const SECRET_TOAST_OFF = 'Geheimmodus deaktiviert. Reisebüro-Fassade wiederhergestellt.'
+
+const SecretModeContext = createContext(false)
+function useSecretMode() { return useContext(SecretModeContext) }
 
 let bodyScrollLockCount = 0
 let bodyScrollLockPrevious = ''
@@ -1130,13 +1169,14 @@ function DayDetailModal({ day, onClose }) {
 
 function Wetter() {
   const { data, loading, isFallback, updatedAt, reload } = useTravelConditions()
+  const secret = useSecretMode()
   const visibleDays = useMemo(() => deriveDays(data), [data])
   const [openIso, setOpenIso] = useState(null)
   const openDay = visibleDays.find((day) => day.iso === openIso) ?? null
 
   return (
     <section id="wetter" className="section">
-      <SectionTitle icon={CloudSun} kicker="Wetterlage am Zielort" title="Travel Conditions" />
+      <SectionTitle icon={CloudSun} kicker={secret ? 'METEO · AUFKLÄRUNG' : 'Wetterlage am Zielort'} title="Travel Conditions" />
       <Card className="card-cream">
         <div className="weather-head">
           <p className="weather-note">{data?.note ?? (loading ? 'Aufklärung läuft…' : 'Lage stabil.')}</p>
@@ -1164,7 +1204,7 @@ function Wetter() {
               [0, 1, 2, 3].map((i) => <div key={`s-${i}`} className="weather-day-skeleton" aria-hidden="true" />)
             )}
             {visibleDays.length === 0 && !loading && (
-              <p className="muted">Die Wetterabteilung schweigt noch.</p>
+              <p className="muted">{secret ? 'Keine Daten. Aufklärung erbeten.' : 'Die Wetterabteilung schweigt noch.'}</p>
             )}
             {visibleDays.map((day) => (
               <WeatherDay
@@ -1301,9 +1341,10 @@ const DRESSCODE_POINTS = [
 ]
 
 function Dresscode() {
+  const secret = useSecretMode()
   return (
     <section id="dresscode" className="section">
-      <SectionTitle icon={Shirt} kicker="Uniform-Vorgabe" title="Dresscode" />
+      <SectionTitle icon={Shirt} kicker={secret ? 'UNIFORM · VORSCHRIFT' : 'Uniform-Vorgabe'} title="Dresscode" />
       <Card>
         <div className="dresscode">
           <div className="polo-wrap">
@@ -1511,6 +1552,7 @@ function PackCategoryCard({ category, done, onToggle, delay }) {
 
 function PackingList() {
   const { done, toggle, reset } = usePackStatus()
+  const secret = useSecretMode()
 
   const totalCount = useMemo(
     () => PACKLIST_CATEGORIES.reduce((sum, cat) => sum + cat.items.length, 0),
@@ -1529,7 +1571,7 @@ function PackingList() {
 
   return (
     <section id="packliste" className="section">
-      <SectionTitle icon={Luggage} kicker="Was muss mit" title="Packliste" />
+      <SectionTitle icon={Luggage} kicker={secret ? 'AUSRÜSTUNG · CHECKLISTE' : 'Was muss mit'} title="Packliste" />
 
       <Card className="pack-progress-card">
         <div className="pack-progress-head">
@@ -1555,7 +1597,7 @@ function PackingList() {
         {allDone && (
           <p className="pack-done-banner">
             <Sparkles size={16} aria-hidden="true" />
-            <span>Rekrut ist reisefähig.</span>
+            <span>{secret ? 'EINSATZBEREIT.' : 'Rekrut ist reisefähig.'}</span>
           </p>
         )}
       </Card>
@@ -1711,6 +1753,7 @@ function LeaveAtHomeCard({ item, isOpen, onToggle }) {
 }
 
 function OutdoorAccordion() {
+  const secret = useSecretMode()
   const [openIds, setOpenIds] = useState(() => new Set())
   const toggle = (id) => {
     setOpenIds((prev) => {
@@ -1722,10 +1765,12 @@ function OutdoorAccordion() {
   }
   return (
     <section id="zuhause" className="section">
-      <SectionTitle icon={CircleX} kicker="Kann zuhause bleiben" title="Outdoor war Tarnung" />
+      <SectionTitle icon={CircleX} kicker={secret ? 'AUSGESCHLOSSENE AUSRÜSTUNG' : 'Kann zuhause bleiben'} title="Outdoor war Tarnung" />
       <Card>
         <p className="lead">
-          Die falsche Fährte war Absicht. Die Wanderschuhe dürfen sich ausruhen.
+          {secret
+            ? 'Tarnung bestätigt. Wanderschuhe ausgemustert.'
+            : 'Die falsche Fährte war Absicht. Die Wanderschuhe dürfen sich ausruhen.'}
         </p>
         <div className="leave-grid">
           {LEAVE_AT_HOME.map((item) => (
@@ -1747,9 +1792,10 @@ function OutdoorAccordion() {
 }
 
 function Wichtig() {
+  const secret = useSecretMode()
   return (
     <section id="wichtig" className="section">
-      <SectionTitle icon={MessageCircle} kicker="Kurz vor Abmarsch" title="Wichtig" />
+      <SectionTitle icon={MessageCircle} kicker={secret ? 'FINALE LAGEBESPRECHUNG' : 'Kurz vor Abmarsch'} title="Wichtig" />
       <div className="wichtig-grid">
         <Card className="card-green wichtig-primary">
           <div className="kvline">
@@ -1820,26 +1866,81 @@ function Footer() {
   )
 }
 
+function SecretToast({ message }) {
+  return (
+    <AnimatePresence>
+      {message && (
+        <motion.div
+          key={message}
+          initial={{ opacity: 0, y: -16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -16 }}
+          transition={{ duration: 0.28, ease: EASE_OUT_SOFT }}
+          className="secret-toast"
+          role="status"
+          aria-live="polite"
+        >
+          <Lock size={14} aria-hidden="true" />
+          <span>{message}</span>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
 export default function App() {
+  const [secretMode, setSecretMode] = useState(() => {
+    if (typeof window === 'undefined') return false
+    try {
+      return window.localStorage.getItem(SECRET_MODE_KEY) === 'true'
+    } catch {
+      return false
+    }
+  })
+  const [secretToast, setSecretToast] = useState(null)
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SECRET_MODE_KEY, String(secretMode))
+    } catch { /* Speicher nicht verfuegbar, ignorieren */ }
+  }, [secretMode])
+
+  useEffect(() => {
+    if (!secretToast) return
+    const t = setTimeout(() => setSecretToast(null), SECRET_TOAST_MS)
+    return () => clearTimeout(t)
+  }, [secretToast])
+
+  const toggleSecretMode = useCallback(() => {
+    setSecretMode((prev) => {
+      const next = !prev
+      setSecretToast(next ? SECRET_TOAST_ON : SECRET_TOAST_OFF)
+      return next
+    })
+  }, [])
+
   return (
     <MotionConfig reducedMotion="user">
-      <div className="app">
-        <Nav />
-        <main>
-          <Hero />
-          <div className="container">
-            <Eckdaten />
-            <CountdownSection />
-            <Reiseleitung />
-            <Wetter />
-            <Dresscode />
-            <PackingList />
-            <OutdoorAccordion />
-            <Wichtig />
-          </div>
-        </main>
-        <Footer />
-      </div>
+      <SecretModeContext.Provider value={secretMode}>
+        <div className={`app${secretMode ? ' secret-mode' : ''}`}>
+          <Nav onToggleSecret={toggleSecretMode} />
+          <main>
+            <Hero />
+            <div className="container">
+              <Eckdaten />
+              <CountdownSection />
+              <Reiseleitung />
+              <Wetter />
+              <Dresscode />
+              <PackingList />
+              <OutdoorAccordion />
+              <Wichtig />
+            </div>
+          </main>
+          <Footer />
+          <SecretToast message={secretToast} />
+        </div>
+      </SecretModeContext.Provider>
     </MotionConfig>
   )
 }
