@@ -534,7 +534,7 @@ function CountdownSection() {
       <Card className="card-navy">
         {time.done ? (
           <p className="countdown-done">
-            <Sparkles size={20} /> Es ist soweit. Pegelspitze in Sicht.
+            <Sparkles size={20} /> Mission läuft.
           </p>
         ) : (
           <div className="countdown-grid">
@@ -1309,6 +1309,10 @@ function Dresscode() {
           <div className="polo-wrap">
             <PoloGraphic />
             <div className="polo-caption">Das offizielle PV-Polo</div>
+            <div className="polo-stamp" aria-hidden="true">
+              <Shirt size={12} />
+              <span>PV-Polo Pflicht</span>
+            </div>
           </div>
           <ul className="bullets">
             {DRESSCODE_POINTS.map(({ Icon, text }) => (
@@ -1746,10 +1750,10 @@ function Wichtig() {
   return (
     <section id="wichtig" className="section">
       <SectionTitle icon={MessageCircle} kicker="Kurz vor Abmarsch" title="Wichtig" />
-      <div className="grid-2">
-        <Card className="card-green">
+      <div className="wichtig-grid">
+        <Card className="card-green wichtig-primary">
           <div className="kvline">
-            <Train size={22} />
+            <Train size={26} />
             <div>
               <h3>Treffpunkt</h3>
               <p>Samstag, 30.05.2026 · 07:45 Uhr · Bahnhof Zug</p>
@@ -1757,7 +1761,7 @@ function Wichtig() {
             </div>
           </div>
         </Card>
-        <Card className="card-orange">
+        <Card className="card-orange wichtig-warn">
           <div className="kvline">
             <Shirt size={22} />
             <div>
