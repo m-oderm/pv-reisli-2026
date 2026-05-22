@@ -1937,9 +1937,12 @@ main { flex: 1; }
     inset 0 -3px 0 rgba(0, 0, 0, 0.4);
 }
 
-/* Cards: dunkler Hintergrund, gruener Glow-Border */
-.app.secret-mode .card {
-  background: rgba(13, 20, 8, 0.85);
+/* Hauptkarten: einheitlich dunkler Hintergrund mit dezentem Glow-Border */
+.app.secret-mode .card,
+.app.secret-mode .card-cream,
+.app.secret-mode .card-navy,
+.app.secret-mode .card-green {
+  background: rgba(8, 14, 6, 0.92);
   border-color: rgba(74, 222, 128, 0.32);
   color: #d1fae5;
   box-shadow:
@@ -1949,15 +1952,13 @@ main { flex: 1; }
 .app.secret-mode .card::after {
   border-color: rgba(74, 222, 128, 0.22);
 }
-.app.secret-mode .card-cream,
-.app.secret-mode .card-navy,
-.app.secret-mode .card-green {
-  background: rgba(13, 20, 8, 0.9);
-}
 .app.secret-mode .card-orange {
   background: linear-gradient(180deg, #ff7a3a 0%, #c2410c 100%);
   color: #fff7e3;
   border-color: rgba(255, 247, 227, 0.45);
+}
+.app.secret-mode .card-orange::after {
+  border-color: rgba(255, 247, 227, 0.32);
 }
 
 /* Kicker und Labels */
@@ -1977,11 +1978,19 @@ main { flex: 1; }
   border-top-color: rgba(74, 222, 128, 0.22);
 }
 
-/* Countdown */
-.app.secret-mode .cd-block {
-  background: rgba(74, 222, 128, 0.06);
-  border-color: rgba(74, 222, 128, 0.4);
+/* Sub-Cards: einheitliche hellgruene Tonung auf dunklem Karton */
+.app.secret-mode .cd-block,
+.app.secret-mode .weather-day,
+.app.secret-mode .weather-day-skeleton,
+.app.secret-mode .hourly-strip,
+.app.secret-mode .day-modal-sun,
+.app.secret-mode .wind-card,
+.app.secret-mode .day-modal-detail,
+.app.secret-mode .leave-card {
+  background: rgba(74, 222, 128, 0.05);
+  border-color: rgba(74, 222, 128, 0.3);
 }
+.app.secret-mode .leave-card.is-open { border-color: #facc15; }
 .app.secret-mode .cd-label,
 .app.secret-mode .countdown-foot { color: #facc15; }
 
@@ -1995,11 +2004,7 @@ main { flex: 1; }
 }
 
 /* Wetter */
-.app.secret-mode .weather-day {
-  background: rgba(74, 222, 128, 0.05);
-  border-color: rgba(74, 222, 128, 0.3);
-  color: #d1fae5;
-}
+.app.secret-mode .weather-day { color: #d1fae5; }
 .app.secret-mode .wd-head { color: #d1fae5; }
 .app.secret-mode .wd-max { color: #d1fae5; }
 .app.secret-mode .wd-min { color: #86efac; }
@@ -2022,14 +2027,12 @@ main { flex: 1; }
 }
 .app.secret-mode .weather-foot { color: #86efac; }
 .app.secret-mode .weather-day-skeleton {
-  background:
+  background-image:
     linear-gradient(100deg,
       rgba(74, 222, 128, 0.04) 30%,
-      rgba(74, 222, 128, 0.12) 50%,
+      rgba(74, 222, 128, 0.14) 50%,
       rgba(74, 222, 128, 0.04) 70%
     );
-  background-size: 200% 100%;
-  border-color: rgba(74, 222, 128, 0.25);
 }
 
 /* Dresscode */
@@ -2084,11 +2087,6 @@ main { flex: 1; }
 }
 
 /* Outdoor Accordion */
-.app.secret-mode .leave-card {
-  background: rgba(74, 222, 128, 0.04);
-  border-color: rgba(74, 222, 128, 0.28);
-}
-.app.secret-mode .leave-card.is-open { border-color: #facc15; }
 .app.secret-mode .leave-icon {
   background: rgba(255, 122, 58, 0.16);
   color: #ff7a3a;
@@ -2144,10 +2142,6 @@ main { flex: 1; }
 .app.secret-mode .day-modal-label-text,
 .app.secret-mode .day-modal-max { color: #d1fae5; }
 .app.secret-mode .day-modal-min { color: #86efac; }
-.app.secret-mode .day-modal-detail {
-  background: rgba(74, 222, 128, 0.06);
-  border-color: rgba(74, 222, 128, 0.28);
-}
 .app.secret-mode .dmd-icon {
   background: rgba(74, 222, 128, 0.18);
   color: #facc15;
@@ -2157,12 +2151,6 @@ main { flex: 1; }
 .app.secret-mode .dmd-hint { color: #4a7d5e; }
 .app.secret-mode .day-modal-section-title { color: #86efac; }
 .app.secret-mode .day-modal-section-title svg { color: #facc15; }
-.app.secret-mode .hourly-strip,
-.app.secret-mode .day-modal-sun,
-.app.secret-mode .wind-card {
-  background: rgba(74, 222, 128, 0.05);
-  border-color: rgba(74, 222, 128, 0.25);
-}
 .app.secret-mode .hourly-hour,
 .app.secret-mode .hourly-icon,
 .app.secret-mode .hourly-temp,
