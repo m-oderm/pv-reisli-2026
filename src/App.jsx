@@ -326,6 +326,32 @@ function useTravelConditions() {
 /* ----- Komponenten ----------------------------------------------- */
 
 function BrandLogo({ size = 44 }) {
+  const secret = useSecretMode()
+  const c = secret
+    ? {
+        discFrom: '#08230f',
+        discTo: '#020a04',
+        ring: '#4ade80',
+        accent: '#facc15',
+        forest: '#022c1a',
+        forestStroke: '#86efac',
+        box: '#facc15',
+        boxHighlight: '#fde047',
+        boxInk: '#050a05',
+        gradId: 'discGradSecret'
+      }
+    : {
+        discFrom: '#173052',
+        discTo: '#0b223d',
+        ring: '#b88a3b',
+        accent: '#b88a3b',
+        forest: '#163d34',
+        forestStroke: '#f7ecd1',
+        box: '#f7ecd1',
+        boxHighlight: '#fff8e1',
+        boxInk: '#132238',
+        gradId: 'discGrad'
+      }
   return (
     <svg
       width={size}
@@ -336,18 +362,18 @@ function BrandLogo({ size = 44 }) {
       className="brand-logo"
     >
       <defs>
-        <radialGradient id="discGrad" cx="50%" cy="40%" r="65%">
-          <stop offset="0%" stopColor="#173052" />
-          <stop offset="100%" stopColor="#0b223d" />
+        <radialGradient id={c.gradId} cx="50%" cy="40%" r="65%">
+          <stop offset="0%" stopColor={c.discFrom} />
+          <stop offset="100%" stopColor={c.discTo} />
         </radialGradient>
       </defs>
-      <circle cx="40" cy="40" r="37" fill="url(#discGrad)" stroke="#b88a3b" strokeWidth="2.5" />
-      <circle cx="40" cy="40" r="32" fill="none" stroke="#b88a3b" strokeOpacity="0.45" strokeDasharray="2 3" />
-      <path d="M14 54 L30 32 L40 44 L52 26 L66 54 Z" fill="#163d34" stroke="#f7ecd1" strokeWidth="1.2" strokeLinejoin="round" />
-      <path d="M30 32 L36 39 L40 44" fill="none" stroke="#f7ecd1" strokeOpacity="0.6" strokeWidth="1" />
+      <circle cx="40" cy="40" r="37" fill={`url(#${c.gradId})`} stroke={c.ring} strokeWidth="2.5" />
+      <circle cx="40" cy="40" r="32" fill="none" stroke={c.ring} strokeOpacity="0.45" strokeDasharray="2 3" />
+      <path d="M14 54 L30 32 L40 44 L52 26 L66 54 Z" fill={c.forest} stroke={c.forestStroke} strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M30 32 L36 39 L40 44" fill="none" stroke={c.forestStroke} strokeOpacity="0.6" strokeWidth="1" />
       <g transform="translate(40 22)">
-        <circle r="3.2" fill="#b88a3b" />
-        <g stroke="#b88a3b" strokeWidth="1.4" strokeLinecap="round">
+        <circle r="3.2" fill={c.accent} />
+        <g stroke={c.accent} strokeWidth="1.4" strokeLinecap="round">
           <line x1="0" y1="-7" x2="0" y2="-4.5" />
           <line x1="0" y1="7" x2="0" y2="4.5" />
           <line x1="-7" y1="0" x2="-4.5" y2="0" />
@@ -355,9 +381,9 @@ function BrandLogo({ size = 44 }) {
         </g>
       </g>
       <g transform="translate(40 58)">
-        <rect x="-7" y="-7" width="11" height="12" rx="1.5" fill="#f7ecd1" stroke="#132238" strokeWidth="1.2" />
-        <rect x="-7" y="-7" width="11" height="3.5" fill="#fff8e1" stroke="#132238" strokeWidth="1.2" />
-        <path d="M4 -5 q4 0 4 4 q0 4 -4 4" fill="none" stroke="#132238" strokeWidth="1.2" />
+        <rect x="-7" y="-7" width="11" height="12" rx="1.5" fill={c.box} stroke={c.boxInk} strokeWidth="1.2" />
+        <rect x="-7" y="-7" width="11" height="3.5" fill={c.boxHighlight} stroke={c.boxInk} strokeWidth="1.2" />
+        <path d="M4 -5 q4 0 4 4 q0 4 -4 4" fill="none" stroke={c.boxInk} strokeWidth="1.2" />
       </g>
     </svg>
   )

@@ -1953,12 +1953,12 @@ main { flex: 1; }
   border-color: rgba(74, 222, 128, 0.22);
 }
 .app.secret-mode .card-orange {
-  background: linear-gradient(180deg, #ff7a3a 0%, #c2410c 100%);
-  color: #fff7e3;
-  border-color: rgba(255, 247, 227, 0.45);
+  background: rgba(8, 14, 6, 0.92);
+  color: #d1fae5;
+  border-color: rgba(255, 122, 58, 0.55);
 }
 .app.secret-mode .card-orange::after {
-  border-color: rgba(255, 247, 227, 0.32);
+  border-color: rgba(255, 122, 58, 0.35);
 }
 
 /* Kicker und Labels */
@@ -2116,8 +2116,9 @@ main { flex: 1; }
 .app.secret-mode .kvline h3 { color: #d1fae5; }
 .app.secret-mode .kvline svg { color: #facc15; }
 .app.secret-mode .wichtig-primary .kvline svg { color: #facc15; }
-.app.secret-mode .card-orange .kvline h3 { color: #fff7e3; }
-.app.secret-mode .card-orange .kvline svg { color: #fff7e3; }
+.app.secret-mode .card-orange .kvline h3 { color: #d1fae5; }
+.app.secret-mode .card-orange .kvline svg { color: #ff7a3a; }
+.app.secret-mode .card-orange .muted { color: rgba(255, 122, 58, 0.78); }
 
 /* Modal */
 .app.secret-mode .day-modal-overlay {
