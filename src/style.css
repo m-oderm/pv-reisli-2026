@@ -261,6 +261,9 @@ main { flex: 1; }
   max-width: 880px;
   margin: 0 auto;
   padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .hero-stamp {
@@ -288,6 +291,7 @@ main { flex: 1; }
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
   text-wrap: balance;
   font-optical-sizing: auto;
+  width: 100%;
 }
 .hero-year {
   font-style: italic;
@@ -340,6 +344,7 @@ main { flex: 1; }
   flex-wrap: wrap;
   gap: 10px 14px;
   margin-top: 12px;
+  width: 100%;
 }
 .qf {
   display: inline-flex;
