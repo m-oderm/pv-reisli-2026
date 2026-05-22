@@ -48,7 +48,28 @@ const CACHE_TTL_SECONDS = 1800
 const FALLBACK_FORECAST_DAYS = 16
 const FORECAST_HORIZON_DAYS = 13
 const ALLOW_PAST_TRIP_DAYS = 7
-const ERROR_DETAIL_MAX_CHARS = 200
+
+// PoP-Schwellen: "Niederschlag faellt" = Member ueberschreitet diese Menge.
+// Stunde 0.1 mm (untere Messgrenze), Tag 1 mm (vergleichbar mit Kachelmannwetter).
+const HOURLY_WET_THRESHOLD_MM = 0.1
+const DAILY_WET_THRESHOLD_MM = 1
+
+// Wet-Code-Grenze (WMO): alles ab 51 ist Niederschlag (Niesel, Regen, Schauer, ...).
+const WMO_WET_CODE_MIN = 51
+
+// Hybrid-Code-Schwellen: Anteil "wet" Members im Stunden-Pool.
+const HYBRID_WET_MAJORITY = 0.5
+const HYBRID_WET_MIXED = 0.3
+
+// Confidence-Stufen aus durchschnittlicher Temperatur-Bandbreite (TMax/TMin Spread).
+const CONFIDENCE_BANDS = [
+  { maxRange: 1.5, value: 95 },
+  { maxRange: 3, value: 85 },
+  { maxRange: 5, value: 70 },
+  { maxRange: 7, value: 55 },
+  { maxRange: 10, value: 40 }
+]
+const CONFIDENCE_DEFAULT = 30
 
 export default {
   async fetch(request, env) {
@@ -80,11 +101,7 @@ export default {
     const ensemble = ensembleRes.status === 'fulfilled' ? ensembleRes.value : null
 
     if (!forecast) {
-      const detail =
-        forecastRes.status === 'rejected'
-          ? String(forecastRes.reason).slice(0, ERROR_DETAIL_MAX_CHARS)
-          : ''
-      return jsonResponse({ error: 'primary_source_failed', detail }, 502)
+      return jsonResponse({ error: 'primary_source_failed' }, 502)
     }
 
     const daily = composeDaily(forecast, ensemble, tz)
@@ -142,12 +159,7 @@ async function fetchForecast({ lat, lon, tz, useTripRange }) {
     cf: { cacheTtl: CACHE_TTL_SECONDS, cacheEverything: true }
   })
   if (!res.ok) {
-    let reason = ''
-    try {
-      const body = await res.json()
-      if (typeof body?.reason === 'string') reason = body.reason
-    } catch {}
-    throw new Error(`forecast ${res.status}: ${reason}`)
+    throw new Error(`forecast ${res.status}`)
   }
   return await res.json()
 }
@@ -251,10 +263,22 @@ function quantile(sorted, q) {
  */
 function filterToDaylight(hourIdxs, times, sunrise, sunset) {
   if (!hourIdxs || !Array.isArray(times) || !sunrise || !sunset) return null
+  const rise = normalizeLocalIso(sunrise)
+  const set = normalizeLocalIso(sunset)
+  if (!rise || !set) return null
   return hourIdxs.filter((i) => {
-    const t = times[i]
-    return typeof t === 'string' && t >= sunrise && t <= sunset
+    const t = normalizeLocalIso(times[i])
+    return t !== null && t >= rise && t <= set
   })
+}
+
+/**
+ * Open-Meteo liefert mit `timezone=...` Zeiten ohne Suffix (YYYY-MM-DDTHH:MM).
+ * Falls eine Variante doch ein `Z` oder Offset einschleppt, schneiden wir auf
+ * die ersten 16 Zeichen, damit lexikographische Vergleiche stabil bleiben.
+ */
+function normalizeLocalIso(value) {
+  return typeof value === 'string' && value.length >= 16 ? value.slice(0, 16) : null
 }
 
 /**
@@ -276,19 +300,19 @@ function filterToDaylight(hourIdxs, times, sunrise, sunset) {
 function hybridWeatherCode(codes) {
   if (!Array.isArray(codes) || codes.length === 0) return null
 
-  const wet = codes.filter((c) => c >= 51).length
+  const wet = codes.filter((c) => c >= WMO_WET_CODE_MIN).length
   const wetRatio = wet / codes.length
 
-  if (wetRatio >= 0.5) {
-    const wetSorted = codes.filter((c) => c >= 51).sort((a, b) => a - b)
+  if (wetRatio >= HYBRID_WET_MAJORITY) {
+    const wetSorted = codes.filter((c) => c >= WMO_WET_CODE_MIN).sort((a, b) => a - b)
     return wetSorted[Math.floor(wetSorted.length / 2)]
   }
 
-  if (wetRatio >= 0.3) {
+  if (wetRatio >= HYBRID_WET_MIXED) {
     return 80
   }
 
-  const drySorted = codes.filter((c) => c < 51).sort((a, b) => a - b)
+  const drySorted = codes.filter((c) => c < WMO_WET_CODE_MIN).sort((a, b) => a - b)
   if (drySorted.length === 0) return null
   return drySorted[Math.floor(drySorted.length / 2)]
 }
@@ -379,8 +403,8 @@ function composeDaily(forecast, ensemble) {
     weather_code: [],
     sunshine_duration: truncate(fDaily.sunshine_duration, time.length),
     daylight_duration: truncate(fDaily.daylight_duration, time.length),
-    sunrise: truncate(fDaily.sunrise, time.length),
-    sunset: truncate(fDaily.sunset, time.length),
+    sunrise: truncate(fDaily.sunrise, time.length).map(normalizeLocalIso),
+    sunset: truncate(fDaily.sunset, time.length).map(normalizeLocalIso),
     wind_direction_10m_dominant: truncate(fDaily.wind_direction_10m_dominant, time.length),
 
     temperature_2m_max: [],
@@ -446,7 +470,7 @@ function rainProbability(precipMembers, hourIdxs) {
     .map((s) => aggregateDay(s, hourIdxs, 'sum'))
     .filter((v) => typeof v === 'number')
   if (dailySums.length === 0) return null
-  const wet = dailySums.filter((v) => v > 1).length
+  const wet = dailySums.filter((v) => v > DAILY_WET_THRESHOLD_MM).length
   return Math.round((wet / dailySums.length) * 100)
 }
 
@@ -467,18 +491,16 @@ function estimateConfidence({ tMaxRange, tMinRange }) {
   const ranges = [tMaxRange, tMinRange].filter((r) => typeof r === 'number')
   if (ranges.length === 0) return null
   const avgRange = ranges.reduce((a, b) => a + b, 0) / ranges.length
-  if (avgRange < 1.5) return 95
-  if (avgRange < 3) return 85
-  if (avgRange < 5) return 70
-  if (avgRange < 7) return 55
-  if (avgRange < 10) return 40
-  return 30
+  const band = CONFIDENCE_BANDS.find((b) => avgRange < b.maxRange)
+  return band ? band.value : CONFIDENCE_DEFAULT
 }
 
 /* ----- Helper ---------------------------------------------------- */
 
 function truncate(arr, len) {
-  return Array.isArray(arr) ? arr.slice(0, len) : new Array(len).fill(null)
+  if (!Array.isArray(arr)) return new Array(len).fill(null)
+  if (arr.length >= len) return arr.slice(0, len)
+  return arr.concat(new Array(len - arr.length).fill(null))
 }
 
 function roundOneDecimal(value) {
@@ -551,11 +573,15 @@ function composeHourly(forecast, ensemble) {
     if (temps.length > 0) out.temperature_2m[i] = roundOneDecimal(quantile(temps, 0.5))
 
     const codes = collectAtHour(grouped.weather_code, i)
-    if (codes.length > 0) {
-      out.weather_code[i] = hybridWeatherCode(codes)
-      // PoP: Anteil Members mit Niederschlags-Code (51+).
-      const wet = codes.filter((c) => c >= 51).length
-      out.precipitation_probability[i] = Math.round((wet / codes.length) * 100)
+    if (codes.length > 0) out.weather_code[i] = hybridWeatherCode(codes)
+
+    // PoP einheitlich auf der mm-Skala: Anteil Members mit Niederschlag
+    // ueber HOURLY_WET_THRESHOLD_MM. Gleiche Logik wie bei rainProbability,
+    // nur stundenweise statt tagesweise aggregiert.
+    const precip = collectAtHour(grouped.precipitation, i)
+    if (precip.length > 0) {
+      const wet = precip.filter((v) => v > HOURLY_WET_THRESHOLD_MM).length
+      out.precipitation_probability[i] = Math.round((wet / precip.length) * 100)
     }
   }
   return out

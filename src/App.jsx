@@ -161,9 +161,17 @@ const NIGHT_ICON_OVERRIDES = {
 }
 
 function weatherCodeToInfo(code, isNight = false) {
-  const info = WEATHER_CODE_TABLE[code] ?? WEATHER_FALLBACK_INFO
-  if (isNight && NIGHT_ICON_OVERRIDES[code]) {
-    return { ...info, Icon: NIGHT_ICON_OVERRIDES[code] }
+  const known = WEATHER_CODE_TABLE[code]
+  const info = known ?? WEATHER_FALLBACK_INFO
+  if (isNight) {
+    if (NIGHT_ICON_OVERRIDES[code]) {
+      return { ...info, Icon: NIGHT_ICON_OVERRIDES[code] }
+    }
+    if (!known) {
+      // Unbekannter Code in der Nacht: CloudSunRain waere unpassend, neutrale
+      // Mond-Variante verwenden.
+      return { ...info, Icon: CloudMoon }
+    }
   }
   return info
 }
@@ -213,15 +221,19 @@ function rangeNumber(v, decimals) {
   return decimals > 0 ? v.toFixed(decimals).replace('.', ',') : String(Math.round(v))
 }
 
+function normalizeLocalIso(value) {
+  return typeof value === 'string' && value.length >= 16 ? value.slice(0, 16) : null
+}
+
 function extractHourlyForDay(hourly, iso, sunrise, sunset) {
   if (!hourly?.time || !iso) return null
+  const rise = normalizeLocalIso(sunrise)
+  const set = normalizeLocalIso(sunset)
   const points = []
   for (let i = 0; i < hourly.time.length; i++) {
-    const ts = hourly.time[i]
-    if (typeof ts !== 'string' || ts.slice(0, 10) !== iso) continue
-    const isNight = sunrise && sunset
-      ? !(ts >= sunrise && ts <= sunset)
-      : false
+    const ts = normalizeLocalIso(hourly.time[i])
+    if (!ts || ts.slice(0, 10) !== iso) continue
+    const isNight = rise && set ? !(ts >= rise && ts <= set) : false
     points.push({
       hour: parseInt(ts.slice(11, 13), 10),
       temp: hourly.temperature_2m?.[i] ?? null,
@@ -662,9 +674,41 @@ function RangeBar({ low, high, value, unit, decimals = 0 }) {
   )
 }
 
+const DRAG_THRESHOLD_PX = 3
+const HOURLY_POP_DISPLAY_THRESHOLD = 30
+
+let bodyScrollLockCount = 0
+let bodyScrollLockPrevious = ''
+
+function acquireBodyScrollLock() {
+  if (typeof document === 'undefined') return () => {}
+  if (bodyScrollLockCount === 0) {
+    bodyScrollLockPrevious = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+  }
+  bodyScrollLockCount += 1
+  return () => {
+    bodyScrollLockCount = Math.max(0, bodyScrollLockCount - 1)
+    if (bodyScrollLockCount === 0) {
+      document.body.style.overflow = bodyScrollLockPrevious
+      bodyScrollLockPrevious = ''
+    }
+  }
+}
+
 function useDragScroll() {
   const ref = useRef(null)
+  const cleanupRef = useRef(null)
+  const mountedRef = useRef(true)
   const [isDragging, setIsDragging] = useState(false)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      cleanupRef.current?.()
+    }
+  }, [])
 
   const onMouseDown = useCallback((event) => {
     if (event.button !== 0) return
@@ -676,22 +720,28 @@ function useDragScroll() {
 
     const handleMove = (moveEvent) => {
       const delta = moveEvent.pageX - startX
-      if (!moved && Math.abs(delta) > 3) {
+      if (!moved && Math.abs(delta) > DRAG_THRESHOLD_PX) {
         moved = true
-        setIsDragging(true)
+        if (mountedRef.current) setIsDragging(true)
       }
       if (moved) {
         moveEvent.preventDefault()
         el.scrollLeft = startScroll - delta
       }
     }
-    const handleUp = () => {
-      setIsDragging(false)
+    const stop = () => {
       window.removeEventListener('mousemove', handleMove)
-      window.removeEventListener('mouseup', handleUp)
+      window.removeEventListener('mouseup', stop)
+      window.removeEventListener('blur', stop)
+      document.removeEventListener('mouseleave', stop)
+      cleanupRef.current = null
+      if (mountedRef.current) setIsDragging(false)
     }
+    cleanupRef.current = stop
     window.addEventListener('mousemove', handleMove)
-    window.addEventListener('mouseup', handleUp)
+    window.addEventListener('mouseup', stop)
+    window.addEventListener('blur', stop)
+    document.addEventListener('mouseleave', stop)
   }, [])
 
   return { ref, isDragging, onMouseDown }
@@ -712,7 +762,7 @@ function HourlyStrip({ points }) {
         const temp = typeof p.temp === 'number' ? Math.round(p.temp) : null
         const info = weatherCodeToInfo(p.code ?? 2, p.isNight)
         const Icon = info.Icon
-        const showRain = typeof p.pop === 'number' && p.pop >= 30
+        const showRain = typeof p.pop === 'number' && p.pop >= HOURLY_POP_DISPLAY_THRESHOLD
         return (
           <div key={p.hour} className="hourly-cell" role="listitem">
             <span className="hourly-hour">{`${String(p.hour).padStart(2, '0')} Uhr`}</span>
@@ -720,7 +770,7 @@ function HourlyStrip({ points }) {
             <span className={`hourly-pop${showRain ? '' : ' hourly-pop-empty'}`}>
               {showRain ? `${Math.round(p.pop)} %` : ' '}
             </span>
-            <span className="hourly-temp">{temp == null ? '–' : `${temp}°`}</span>
+            <span className="hourly-temp">{temp == null ? 'k. A.' : `${temp}°`}</span>
           </div>
         )
       })}
@@ -733,7 +783,7 @@ function SunArc({ sunrise, sunset }) {
   const set = formatTimeOnly(sunset)
   if (!rise && !set) return null
   return (
-    <div className="sun-arc" role="img" aria-label={`Sonne ${rise || '–'} bis ${set || '–'}`}>
+    <div className="sun-arc" role="img" aria-label={`Sonne ${rise || 'k. A.'} bis ${set || 'k. A.'}`}>
       <svg viewBox="0 0 220 70" preserveAspectRatio="none" className="sun-arc-svg">
         <defs>
           <linearGradient id="sunArcGrad" x1="0" y1="1" x2="0" y2="0">
@@ -755,11 +805,11 @@ function SunArc({ sunrise, sunset }) {
       <div className="sun-arc-labels">
         <span>
           <span className="sun-arc-label">Aufgang</span>
-          <span className="sun-arc-time">{rise || '–'}</span>
+          <span className="sun-arc-time">{rise || 'k. A.'}</span>
         </span>
         <span>
           <span className="sun-arc-label">Untergang</span>
-          <span className="sun-arc-time">{set || '–'}</span>
+          <span className="sun-arc-time">{set || 'k. A.'}</span>
         </span>
       </div>
     </div>
@@ -897,6 +947,8 @@ function DetailTile({ Icon, label, value, hint, range, children, wide }) {
 
 function DayDetailModal({ day, onClose }) {
   const Icon = day.info.Icon
+  const dialogRef = useRef(null)
+  const closeRef = useRef(null)
 
   useEffect(() => {
     const onKey = (event) => { if (event.key === 'Escape') onClose() }
@@ -904,10 +956,35 @@ function DayDetailModal({ day, onClose }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  useEffect(() => acquireBodyScrollLock(), [])
+
   useEffect(() => {
-    const previous = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = previous }
+    const restoreTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    closeRef.current?.focus()
+    const onKey = (event) => {
+      if (event.key !== 'Tab') return
+      const dialog = dialogRef.current
+      if (!dialog) return
+      const focusables = dialog.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      const visible = Array.from(focusables).filter((el) => !el.hasAttribute('disabled'))
+      if (visible.length === 0) return
+      const first = visible[0]
+      const last = visible[visible.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      restoreTarget?.focus?.()
+    }
   }, [])
 
   const windDirLabel = windDirectionLabel(day.windDir)
@@ -928,6 +1005,7 @@ function DayDetailModal({ day, onClose }) {
       role="presentation"
     >
       <motion.div
+        ref={dialogRef}
         className="day-modal"
         initial={{ y: 40, opacity: 0, scale: 0.96 }}
         animate={{ y: 0, opacity: 1, scale: 1 }}
@@ -941,6 +1019,7 @@ function DayDetailModal({ day, onClose }) {
         <div className="day-modal-toolbar">
           <span className="day-modal-handle" aria-hidden="true" />
           <button
+            ref={closeRef}
             type="button"
             className="day-modal-close"
             onClick={onClose}
