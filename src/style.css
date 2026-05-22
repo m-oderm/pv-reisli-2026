@@ -1937,20 +1937,20 @@ main { flex: 1; }
   color: #d1fae5;
 }
 
-/* Ribbon: gedaempfter Akten-Stempel mit Phosphor-Border */
+/* Ribbon: Akten-Stempel TOP SECRET in kraeftigem Aktenrot */
 .app.secret-mode .ribbon {
-  background: linear-gradient(180deg, #8a3a18 0%, #5a2410 100%);
-  color: #fde8d4;
+  background: linear-gradient(180deg, #c52a1f 0%, #8a160e 100%);
+  color: #fef2f2;
   box-shadow:
-    0 0 0 1px rgba(74, 222, 128, 0.4),
-    0 12px 24px -10px rgba(0, 0, 0, 0.7),
-    0 4px 10px -4px rgba(74, 222, 128, 0.18),
-    inset 0 1px 0 rgba(255, 244, 224, 0.18),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.45);
+    0 0 0 1px rgba(74, 222, 128, 0.35),
+    0 14px 28px -10px rgba(197, 42, 31, 0.4),
+    0 4px 12px -4px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 244, 224, 0.32),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.4);
 }
 .app.secret-mode .ribbon::before,
 .app.secret-mode .ribbon::after {
-  background: linear-gradient(180deg, #5a2410, #2e1308);
+  background: linear-gradient(180deg, #8a160e, #4a0c08);
 }
 
 /* Hauptkarten: einheitlich dunkler Hintergrund mit dezentem Glow-Border */
