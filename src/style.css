@@ -1194,19 +1194,6 @@ main { flex: 1; }
 .wichtig-primary .kvline svg { color: var(--gold-soft); }
 .wichtig-primary { box-shadow: var(--shadow-hover); }
 
-.wichtig-warn {
-  position: relative;
-  overflow: hidden;
-}
-.wichtig-warn::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: rgba(255, 247, 227, 0.65);
-}
 
 .kvline { display: flex; gap: 14px; align-items: flex-start; }
 .kvline svg { flex: 0 0 auto; margin-top: 4px; }

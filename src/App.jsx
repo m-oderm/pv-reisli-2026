@@ -1761,7 +1761,7 @@ function Wichtig() {
             </div>
           </div>
         </Card>
-        <Card className="card-orange wichtig-warn">
+        <Card className="card-orange">
           <div className="kvline">
             <Shirt size={22} />
             <div>
