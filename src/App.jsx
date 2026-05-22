@@ -1335,7 +1335,6 @@ const PACKLIST_CATEGORIES = [
       { id: 'docs-insurance', text: 'Krankenkassenkarte oder Versicherungskarte' },
       { id: 'docs-card', text: 'Bankkarte oder Kreditkarte' },
       { id: 'docs-cash', text: 'Etwas Bargeld in Euro' },
-      { id: 'docs-tickets', text: 'Zugticket und Reiseunterlagen digital verfügbar' },
       { id: 'docs-emergency', text: 'Notfallkontakt gespeichert' }
     ]
   },
@@ -1348,8 +1347,7 @@ const PACKLIST_CATEGORIES = [
       { id: 'tech-charger', text: 'Ladekabel' },
       { id: 'tech-powerbank', text: 'Powerbank' },
       { id: 'tech-headphones', text: 'Kopfhörer' },
-      { id: 'tech-adapter', text: 'Adapter oder Mehrfachstecker, falls nötig' },
-      { id: 'tech-offline', text: 'Offline-Karte oder Screenshots der wichtigsten Infos' }
+      { id: 'tech-adapter', text: 'Adapter oder Mehrfachstecker, falls nötig' }
     ]
   },
   {
@@ -1357,16 +1355,19 @@ const PACKLIST_CATEGORIES = [
     Icon: Shirt,
     title: 'Kleidung',
     items: [
-      { id: 'cl-polo', text: 'PV-Polo' },
-      { id: 'cl-shirt', text: 'Hemd für den Abend' },
-      { id: 'cl-outfit', text: 'Ausgangs-Outfit' },
-      { id: 'cl-shoes', text: 'Bequeme Schuhe' },
-      { id: 'cl-jacket', text: 'Leichte Jacke' },
-      { id: 'cl-rain', text: 'Regenschutz oder kleiner Schirm' },
-      { id: 'cl-sunglasses', text: 'Sonnenbrille' },
+      { id: 'cl-daytime', text: 'T-Shirts oder Polos für untertags' },
+      { id: 'cl-shorts', text: 'Kurze Hose oder leichte Hose' },
+      { id: 'cl-pants', text: 'Lange Hose für den Abend' },
+      { id: 'cl-sweater', text: 'Pullover oder leichter Sweater' },
       { id: 'cl-underwear', text: 'Unterwäsche und Socken' },
       { id: 'cl-sleep', text: 'Schlafkleidung' },
-      { id: 'cl-spare', text: 'Ersatzshirt' }
+      { id: 'cl-shoes', text: 'Bequeme Schuhe' },
+      { id: 'cl-shirt', text: 'Hemd für den Abend' },
+      { id: 'cl-outfit', text: 'Ausgangs-Outfit' },
+      { id: 'cl-polo', text: 'PV-Polo' },
+      { id: 'cl-jacket', text: 'Leichte Jacke' },
+      { id: 'cl-rain', text: 'Regenschutz oder kleiner Schirm' },
+      { id: 'cl-sunglasses', text: 'Sonnenbrille' }
     ]
   },
   {
@@ -1392,7 +1393,7 @@ const PACKLIST_CATEGORIES = [
     items: [
       { id: 'tr-bottle', text: 'Trinkflasche' },
       { id: 'tr-snacks', text: 'Snacks für den Zug' },
-      { id: 'tr-bag', text: 'Kleine Tasche oder Bauchtasche' },
+      { id: 'tr-backpack', text: 'Kleiner Rucksack' },
       { id: 'tr-idcopy', text: 'Kopie oder Foto der ID' },
       { id: 'tr-mood', text: 'Gute Laune' },
       { id: 'tr-thirst', text: 'Stabiler Durst' }
