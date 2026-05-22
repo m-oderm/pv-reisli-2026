@@ -1937,14 +1937,20 @@ main { flex: 1; }
   color: #d1fae5;
 }
 
-/* Ribbon: Akten-Orange */
+/* Ribbon: gedaempfter Akten-Stempel mit Phosphor-Border */
 .app.secret-mode .ribbon {
-  background: linear-gradient(180deg, #ff7a3a 0%, #c2410c 100%);
+  background: linear-gradient(180deg, #8a3a18 0%, #5a2410 100%);
+  color: #fde8d4;
   box-shadow:
-    0 14px 28px -10px rgba(255, 122, 58, 0.5),
-    0 4px 10px -4px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 244, 224, 0.35),
-    inset 0 -3px 0 rgba(0, 0, 0, 0.4);
+    0 0 0 1px rgba(74, 222, 128, 0.4),
+    0 12px 24px -10px rgba(0, 0, 0, 0.7),
+    0 4px 10px -4px rgba(74, 222, 128, 0.18),
+    inset 0 1px 0 rgba(255, 244, 224, 0.18),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.45);
+}
+.app.secret-mode .ribbon::before,
+.app.secret-mode .ribbon::after {
+  background: linear-gradient(180deg, #5a2410, #2e1308);
 }
 
 /* Hauptkarten: einheitlich dunkler Hintergrund mit dezentem Glow-Border */
