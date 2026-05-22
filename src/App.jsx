@@ -14,10 +14,12 @@ import {
   CloudFog,
   CloudLightning,
   CloudMoon,
+  CloudMoonRain,
   CloudRain,
   CloudRainWind,
   CloudSnow,
   CloudSun,
+  CloudSunRain,
   Compass,
   Droplets,
   Dumbbell,
@@ -120,8 +122,8 @@ const WEATHER_CODE_TABLE = {
   73: { label: 'Schneefall', Icon: CloudSnow },
   75: { label: 'starker Schneefall', Icon: CloudSnow },
   77: { label: 'Schneefall', Icon: Snowflake },
-  80: { label: 'Regenschauer', Icon: CloudRain },
-  81: { label: 'Regenschauer', Icon: CloudRain },
+  80: { label: 'Regenschauer', Icon: CloudSunRain },
+  81: { label: 'Regenschauer', Icon: CloudSunRain },
   82: { label: 'heftige Schauer', Icon: CloudRainWind },
   85: { label: 'Schneeschauer', Icon: CloudSnow },
   86: { label: 'Schneeschauer', Icon: CloudSnow },
@@ -153,7 +155,9 @@ function formatGermanDay(iso) {
 const NIGHT_ICON_OVERRIDES = {
   0: Moon,
   1: Moon,
-  2: CloudMoon
+  2: CloudMoon,
+  80: CloudMoonRain,
+  81: CloudMoonRain
 }
 
 function weatherCodeToInfo(code, isNight = false) {
