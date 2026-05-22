@@ -1893,6 +1893,16 @@ main { flex: 1; }
 .app.secret-mode .brand-name { color: #4ade80; }
 .app.secret-mode .brand-sub { color: #facc15; }
 .app.secret-mode .nav-links button { color: #d1fae5; }
+.app.secret-mode .nav-toggle {
+  border-color: rgba(74, 222, 128, 0.55);
+}
+.app.secret-mode .nav-toggle span {
+  background: #4ade80;
+}
+.app.secret-mode .nav-links {
+  background: #050a05;
+  border-color: rgba(74, 222, 128, 0.4);
+}
 .app.secret-mode .nav-links button:hover {
   background: rgba(74, 222, 128, 0.18);
   color: #fff;
