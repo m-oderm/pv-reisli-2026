@@ -86,9 +86,9 @@ main { flex: 1; }
   padding: 0 24px 96px;
 }
 
-.section { margin-top: 96px; scroll-margin-top: 80px; }
+.section { margin-top: 128px; scroll-margin-top: 80px; }
 @media (max-width: 720px) {
-  .section { margin-top: 64px; }
+  .section { margin-top: 80px; }
 }
 
 /* ---------- Nav ---------- */
