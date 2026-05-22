@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
 import {
   Beer,
@@ -662,10 +662,52 @@ function RangeBar({ low, high, value, unit, decimals = 0 }) {
   )
 }
 
+function useDragScroll() {
+  const ref = useRef(null)
+  const [isDragging, setIsDragging] = useState(false)
+
+  const onMouseDown = useCallback((event) => {
+    if (event.button !== 0) return
+    const el = ref.current
+    if (!el || el.scrollWidth <= el.clientWidth) return
+    const startX = event.pageX
+    const startScroll = el.scrollLeft
+    let moved = false
+
+    const handleMove = (moveEvent) => {
+      const delta = moveEvent.pageX - startX
+      if (!moved && Math.abs(delta) > 3) {
+        moved = true
+        setIsDragging(true)
+      }
+      if (moved) {
+        moveEvent.preventDefault()
+        el.scrollLeft = startScroll - delta
+      }
+    }
+    const handleUp = () => {
+      setIsDragging(false)
+      window.removeEventListener('mousemove', handleMove)
+      window.removeEventListener('mouseup', handleUp)
+    }
+    window.addEventListener('mousemove', handleMove)
+    window.addEventListener('mouseup', handleUp)
+  }, [])
+
+  return { ref, isDragging, onMouseDown }
+}
+
 function HourlyStrip({ points }) {
+  const dragScroll = useDragScroll()
   if (!points || points.length === 0) return null
   return (
-    <div className="hourly-strip" role="list" aria-label="Stündliche Vorhersage">
+    <div
+      ref={dragScroll.ref}
+      className={`hourly-strip${dragScroll.isDragging ? ' is-dragging' : ''}`}
+      role="list"
+      aria-label="Stündliche Vorhersage"
+      onMouseDown={dragScroll.onMouseDown}
+    >
       {points.map((p) => {
         const temp = typeof p.temp === 'number' ? Math.round(p.temp) : null
         const info = weatherCodeToInfo(p.code ?? 2, p.isNight)

@@ -1348,8 +1348,15 @@ main { flex: 1; }
   border-radius: 14px;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  cursor: grab;
 }
 .hourly-strip::-webkit-scrollbar { display: none; }
+.hourly-strip.is-dragging {
+  cursor: grabbing;
+  scroll-snap-type: none;
+  user-select: none;
+}
+.hourly-strip.is-dragging .hourly-cell { pointer-events: none; }
 
 .hourly-cell {
   display: flex;
