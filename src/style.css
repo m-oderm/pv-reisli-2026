@@ -29,10 +29,10 @@
   --radius: 18px;
   --radius-sm: 10px;
 
-  /* All-Caps Tracking */
-  --track-tight: 1.5px;   /* Mikro-Labels unter 12px */
-  --track-loose: 4px;     /* Standard fuer Kicker und Labels ab 12px */
-  --track-display: 5px;   /* Hero-Eyebrow, sehr offen */
+  /* All-Caps Tracking, proportional in em */
+  --track-tight: 0.08em;   /* Mikro-Labels unter 12px */
+  --track-loose: 0.18em;   /* Standard fuer Kicker und Labels ab 12px */
+  --track-display: 0.24em; /* Hero-Eyebrow, sehr offen */
 
   --serif: 'Playfair Display', 'Georgia', serif;
   --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
@@ -54,6 +54,8 @@ html { scroll-behavior: smooth; }
 
 body {
   font-family: var(--sans);
+  font-feature-settings: "cv11", "ss03", "ss01";
+  font-optical-sizing: auto;
   color: var(--ink);
   background: var(--paper);
   /* Sehr subtile Papier-Textur */
@@ -133,7 +135,7 @@ main { flex: 1; }
 }
 .brand-sub {
   font-size: 11px;
-  letter-spacing: 2px;
+  letter-spacing: var(--track-loose);
   text-transform: uppercase;
   color: var(--gold-soft);
 }
@@ -289,18 +291,16 @@ main { flex: 1; }
 .hero-title {
   font-family: var(--serif);
   font-size: clamp(56px, 12vw, 140px);
-  font-weight: 900;
+  font-weight: 800;
   line-height: 0.92;
   margin: 0;
-  letter-spacing: -2px;
+  letter-spacing: -0.02em;
   color: #fbf6e7;
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
   text-wrap: balance;
-  font-optical-sizing: auto;
   width: 100%;
 }
 .hero-year {
-  font-style: italic;
   color: var(--gold-soft);
   font-weight: 700;
 }
@@ -341,10 +341,11 @@ main { flex: 1; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  font-family: var(--serif);
   font-style: italic;
   color: var(--gold-soft);
   margin: 4px 0 26px;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .hero-quickfacts {
@@ -392,7 +393,7 @@ main { flex: 1; }
   font-weight: 800;
   font-size: clamp(28px, 4vw, 42px);
   margin: 12px 0 0;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.012em;
   color: var(--navy);
   text-wrap: balance;
 }
@@ -526,8 +527,8 @@ main { flex: 1; }
   line-height: 1;
   height: clamp(38px, 7vw, 64px);
   color: #fbf6e7;
-  letter-spacing: -1px;
-  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-variant-numeric: lining-nums tabular-nums;
   overflow: hidden;
 }
 .cd-value > span { display: inline-block; }
@@ -543,7 +544,7 @@ main { flex: 1; }
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  letter-spacing: 2px;
+  letter-spacing: var(--track-loose);
   text-transform: uppercase;
   color: var(--gold-soft);
   margin: 6px 0 0;
@@ -581,9 +582,11 @@ main { flex: 1; }
 }
 .leader-nick {
   margin: 2px 0 8px;
+  font-family: var(--serif);
   font-style: italic;
+  font-size: 16px;
   color: var(--gold);
-  letter-spacing: 0.5px;
+  letter-spacing: 0;
 }
 .leader-role { margin: 0; color: var(--ink-soft); }
 
@@ -681,8 +684,8 @@ main { flex: 1; }
   font-size: 32px;
   line-height: 1;
   color: var(--navy);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.5px;
+  font-variant-numeric: lining-nums tabular-nums;
+  letter-spacing: -0.015em;
 }
 .wd-min {
   color: var(--muted);
@@ -975,10 +978,10 @@ main { flex: 1; }
 }
 .pack-cat-count {
   font-size: 11px;
-  letter-spacing: 1.5px;
+  letter-spacing: var(--track-tight);
   text-transform: uppercase;
   color: var(--ink-soft);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .pack-items {
@@ -1244,16 +1247,18 @@ main { flex: 1; }
 }
 .footer-claim {
   margin: 3px 0 0;
+  font-family: var(--serif);
   color: var(--gold-soft);
   font-style: italic;
-  font-size: 13.5px;
+  font-size: 14px;
 }
 .footer-tag {
   max-width: 360px;
   margin: 0;
   text-align: center;
-  font-size: 13px;
+  font-size: 14px;
   color: rgba(247, 236, 209, 0.72);
+  font-family: var(--serif);
   font-style: italic;
   line-height: 1.5;
 }
@@ -1385,9 +1390,9 @@ main { flex: 1; }
 .day-modal-day {
   margin: 0;
   font-size: 12px;
-  letter-spacing: 2.4px;
+  letter-spacing: var(--track-loose);
   text-transform: uppercase;
-  color: var(--gold);
+  color: var(--gold-deep);
 }
 .day-modal-icon {
   display: inline-flex;
@@ -1413,7 +1418,8 @@ main { flex: 1; }
   font-size: clamp(48px, 14vw, 64px);
   color: var(--navy);
   line-height: 1;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
+  letter-spacing: -0.02em;
 }
 .day-modal-min {
   font-size: 22px;
@@ -1445,7 +1451,7 @@ main { flex: 1; }
 }
 .temp-bar-label {
   color: var(--ink-soft);
-  letter-spacing: 1.2px;
+  letter-spacing: var(--track-tight);
   text-transform: uppercase;
 }
 .temp-bar-range {
@@ -1494,7 +1500,7 @@ main { flex: 1; }
   gap: 6px;
   margin: 0 0 10px;
   font-size: 11px;
-  letter-spacing: 1.6px;
+  letter-spacing: var(--track-tight);
   text-transform: uppercase;
   color: var(--ink-soft);
   font-weight: 600;
@@ -1590,7 +1596,7 @@ main { flex: 1; }
 }
 .sun-arc-label {
   font-size: 10px;
-  letter-spacing: 1.2px;
+  letter-spacing: var(--track-tight);
   text-transform: uppercase;
   color: var(--ink-soft);
 }
@@ -1707,7 +1713,7 @@ main { flex: 1; }
 }
 .dmd-label {
   font-size: 10px;
-  letter-spacing: 1.2px;
+  letter-spacing: var(--track-tight);
   text-transform: uppercase;
   color: var(--ink-soft);
   white-space: nowrap;
