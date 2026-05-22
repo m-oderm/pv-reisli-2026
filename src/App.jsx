@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
+import { motion, AnimatePresence, MotionConfig, useDragControls, useReducedMotion } from 'framer-motion'
 import {
   Beer,
   Bug,
@@ -399,14 +399,37 @@ function Nav() {
   )
 }
 
+function Ribbon({ children }) {
+  const prefersReduced = useReducedMotion()
+  const animate = prefersReduced
+    ? { opacity: 1, scale: 1, rotate: -1.5 }
+    : { opacity: 1, scale: 1, rotate: [-1.5, -2.6, -1.5] }
+  const transition = prefersReduced
+    ? { opacity: { duration: 0.4 }, scale: { duration: 0.4 } }
+    : {
+        opacity: { delay: 0.35, duration: 0.6, ease: EASE_OUT_SOFT },
+        scale: { delay: 0.35, duration: 0.6, ease: EASE_OUT_SOFT },
+        rotate: { delay: 1.1, duration: 5.5, repeat: Infinity, ease: 'easeInOut' }
+      }
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.92, rotate: -1.5 }}
+      animate={animate}
+      transition={transition}
+      className="ribbon"
+    >
+      {children}
+    </motion.div>
+  )
+}
+
 function Hero() {
   return (
     <section id="hero" className="hero">
       <div className="hero-frame">
         <div className="hero-stamp" aria-hidden="true">
-          <Lock size={14} /> Geheime Mission
+          <Lock size={14} /> Geheime Mission · 30.05.2026
         </div>
-        <p className="hero-eyebrow">Pegelspitze Reisen präsentiert</p>
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -417,29 +440,7 @@ function Hero() {
           <span className="hero-year">2026</span>
         </motion.h1>
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.92, rotate: -1.5 }}
-          animate={{
-            opacity: 1,
-            scale: 1,
-            rotate: [-1.5, -2.6, -1.5]
-          }}
-          transition={{
-            opacity: { delay: 0.35, duration: 0.6, ease: EASE_OUT_SOFT },
-            scale: { delay: 0.35, duration: 0.6, ease: EASE_OUT_SOFT },
-            rotate: {
-              delay: 1.1,
-              duration: 5.5,
-              repeat: Infinity,
-              ease: 'easeInOut'
-            }
-          }}
-          className="ribbon"
-        >
-          Es wird ernst!
-        </motion.div>
-
-        <p className="hero-mission">Abfahrt steht bevor · 30.05.2026</p>
+        <Ribbon>Es wird ernst!</Ribbon>
 
         <p className="hero-note">
           <Sparkles size={14} /> Die falsche Fährte war Absicht <span aria-hidden="true">;)</span>
@@ -949,6 +950,7 @@ function DayDetailModal({ day, onClose }) {
   const Icon = day.info.Icon
   const dialogRef = useRef(null)
   const closeRef = useRef(null)
+  const dragControls = useDragControls()
 
   useEffect(() => {
     const onKey = (event) => { if (event.key === 'Escape') onClose() }
@@ -1015,9 +1017,22 @@ function DayDetailModal({ day, onClose }) {
         role="dialog"
         aria-modal="true"
         aria-label={`Wetter-Details für ${day.label}`}
+        drag="y"
+        dragListener={false}
+        dragControls={dragControls}
+        dragConstraints={{ top: 0, bottom: 0 }}
+        dragElastic={{ top: 0, bottom: 0.5 }}
+        onDragEnd={(_, info) => {
+          if (info.offset.y > 120 || info.velocity.y > 600) onClose()
+        }}
       >
         <div className="day-modal-toolbar">
-          <span className="day-modal-handle" aria-hidden="true" />
+          <button
+            type="button"
+            className="day-modal-handle"
+            aria-label="Zum Schliessen nach unten ziehen"
+            onPointerDown={(event) => dragControls.start(event)}
+          />
           <button
             ref={closeRef}
             type="button"
@@ -1124,15 +1139,15 @@ function Wetter() {
       <SectionTitle icon={CloudSun} kicker="Wetterlage am Zielort" title="Travel Conditions" />
       <Card className="card-cream">
         <div className="weather-head">
-          <p className="weather-note">{data?.note ?? 'Lade Wetter…'}</p>
+          <p className="weather-note">{data?.note ?? (loading ? 'Aufklärung läuft…' : 'Lage stabil.')}</p>
           <button
-            className="btn-ghost"
+            className="weather-refresh"
             onClick={reload}
             disabled={loading}
             aria-label="Wetter aktualisieren"
+            title="Aktualisieren"
           >
-            <RefreshCw size={16} className={loading ? 'spin' : ''} />
-            Aktualisieren
+            <RefreshCw size={18} className={loading ? 'spin' : ''} />
           </button>
         </div>
 
@@ -1145,8 +1160,11 @@ function Wetter() {
             transition={{ duration: 0.32, ease: EASE_OUT_SOFT }}
             className="weather-grid"
           >
+            {visibleDays.length === 0 && loading && (
+              [0, 1, 2, 3].map((i) => <div key={`s-${i}`} className="weather-day-skeleton" aria-hidden="true" />)
+            )}
             {visibleDays.length === 0 && !loading && (
-              <p className="muted">Noch keine Vorhersage.</p>
+              <p className="muted">Die Wetterabteilung schweigt noch.</p>
             )}
             {visibleDays.map((day) => (
               <WeatherDay
