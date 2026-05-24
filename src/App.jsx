@@ -2339,17 +2339,10 @@ function TravelStatusCard({ status, secret }) {
 }
 
 function TravelQuestCard({ quest, travelStatus, now, secret }) {
-  const toast = useToast()
   const hints = quest.hints ?? []
   const unlocked = getUnlockedQuestHints(hints, now)
   const latest = unlocked[unlocked.length - 1]
   const nextLocked = getNextLockedHint(hints, now)
-
-  const handleCopyHint = async (hint) => {
-    const txt = `${hint.title}\n${hint.text}`
-    const ok = await copyToClipboard(txt)
-    toast(ok ? 'Hinweis kopiert.' : 'Hinweis konnte nicht kopiert werden.')
-  }
 
   return (
     <Card className="card-cream tb-quest">
@@ -2379,11 +2372,6 @@ function TravelQuestCard({ quest, travelStatus, now, secret }) {
               <>
                 <div className="tb-hint-title">{h.title}</div>
                 <div className="tb-hint-text">{h.text}</div>
-                {h === latest && (
-                  <button type="button" className="tb-hint-copy" onClick={() => handleCopyHint(h)}>
-                    <Copy size={14} aria-hidden="true" /> Hinweis kopieren
-                  </button>
-                )}
               </>
             )}
           </li>
