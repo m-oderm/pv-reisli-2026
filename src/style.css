@@ -3100,6 +3100,45 @@ main { flex: 1; }
   .pack-cat-title { color: var(--ink); }
   .pack-progress-text strong { color: var(--ink); }
 
+  /* Tagesbriefing im dunklen Modus */
+  .tb-focus-title,
+  .tb-section-h,
+  .tb-next-up-time,
+  .tb-tile-weather-max,
+  .tb-tile-weather .tb-tile-label {
+    color: var(--ink);
+  }
+  .tb-tile-weather {
+    background: rgba(247, 236, 209, 0.04);
+    border-color: rgba(247, 236, 209, 0.18);
+  }
+  .tb-tile-weather .tb-tile-icon {
+    background: rgba(247, 236, 209, 0.1);
+    color: var(--ink);
+  }
+  .tb-tile-weather-min {
+    color: var(--ink-soft);
+  }
+  .tb-next-up {
+    background: rgba(247, 236, 209, 0.05);
+  }
+  .tb-focus-badge {
+    background: rgba(247, 236, 209, 0.06);
+    color: var(--ink-soft);
+    border-color: rgba(247, 236, 209, 0.18);
+  }
+  .tb-focus-badge.is-today {
+    background: rgba(184, 138, 59, 0.22);
+    color: var(--gold-soft);
+    border-color: rgba(184, 138, 59, 0.55);
+  }
+  .tb-focus-badge.is-past {
+    background: rgba(111, 179, 156, 0.18);
+    color: #b6d8c8;
+    border-color: rgba(111, 179, 156, 0.4);
+  }
+  .tb-concierge-text { color: var(--ink); }
+
   /* Wetter-Detail-Modal im dunklen Modus */
   .day-modal {
     background: linear-gradient(180deg, #1a2d48, #14253c);
