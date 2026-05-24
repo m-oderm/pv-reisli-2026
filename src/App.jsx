@@ -123,6 +123,17 @@ function effectiveNow() {
   return NOW_OVERRIDE_MS ?? Date.now()
 }
 
+function getTestKey() {
+  if (typeof window === 'undefined') return null
+  try {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('testKey')
+  } catch {
+    return null
+  }
+}
+const TEST_KEY = getTestKey()
+
 const TRAVEL_DATES = ['2026-05-30', '2026-05-31', '2026-06-01', '2026-06-02']
 
 const FALLBACK_PAYLOAD = {
@@ -365,7 +376,11 @@ function useTravelConditions() {
 
 function buildTripProgramUrl() {
   const base = '/api/trip-program'
-  return NOW_OVERRIDE_MS ? `${base}?now=${encodeURIComponent(new Date(NOW_OVERRIDE_MS).toISOString())}` : base
+  if (!NOW_OVERRIDE_MS) return base
+  const params = new URLSearchParams()
+  params.set('now', new Date(NOW_OVERRIDE_MS).toISOString())
+  if (TEST_KEY) params.set('testKey', TEST_KEY)
+  return `${base}?${params.toString()}`
 }
 
 function useTripProgram() {

@@ -346,18 +346,16 @@ export default {
   }
 }
 
-// Production-Hosts: hier liegt die echte Geheimhaltung, ?now= wird ignoriert.
-// Alle anderen Hosts (Cloudflare Preview-Branches, lokales Wrangler) duerfen
-// den Override nutzen.
-const PRODUCTION_HOSTS = new Set([
-  'pv-reisli-2026.marc-odermatt-8c1.workers.dev'
-])
+// Token-basierter Zeit-Override: ?now= wird nur akzeptiert, wenn zusaetzlich
+// ?testKey=<TOKEN> mitkommt. Damit kann nur, wer den Token kennt, die
+// Geheimhaltung umgehen. Token wird absichtlich im Frontend NICHT verwendet
+// und ist nur fuer manuelle Test-URLs gedacht.
+const TEST_OVERRIDE_TOKEN = 'pegelspitze-bunker-2026'
 
 function resolveNow(url, env) {
-  const host = url.hostname.toLowerCase()
-  const isPreview = !PRODUCTION_HOSTS.has(host)
+  const testKey = url.searchParams.get('testKey')
   const envOverride = env && env.ALLOW_TIME_OVERRIDE === 'true'
-  if (isPreview || envOverride) {
+  if (testKey === TEST_OVERRIDE_TOKEN || envOverride) {
     const override = url.searchParams.get('now')
     if (override) {
       const parsed = Date.parse(override)
