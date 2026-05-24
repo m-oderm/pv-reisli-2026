@@ -2231,7 +2231,8 @@ function Tagesbriefing({ tripStarted, now }) {
     const pinned = pinnedDayId ? tabbableDays.find((d) => d.id === pinnedDayId) : null
     const focus = pinned ?? defaultFocus
     const lockedRest = (data.days ?? []).filter((d) => d.locked)
-    const showStatus = now >= SATURDAY_MIDNIGHT_MS && now < TRIP_END_MS
+    // Reiselage nur waehrend der Anreise (Sa 00:00 bis Ankunft 12:20).
+    const showStatus = now >= SATURDAY_MIDNIGHT_MS && now < SATURDAY_UNLOCK_MS
     content = (
       <>
         {tabbableDays.length > 1 && (
