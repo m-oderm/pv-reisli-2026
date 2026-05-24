@@ -2495,12 +2495,17 @@ function FocusDayCard({ day, now, secret, weather }) {
               <div className="tb-tl-body">
                 <div className="tb-tl-title">{item.title}</div>
                 {item.subtitle && <div className="tb-tl-sub">{item.subtitle}</div>}
-                {item.link && (
-                  <a className="tb-tl-link" href={item.link} target="_blank" rel="noopener noreferrer">
-                    <MapPin size={12} aria-hidden="true" /> Karte öffnen
-                    <ExternalLink size={11} aria-hidden="true" />
-                  </a>
-                )}
+                {item.link && (() => {
+                  const isTimetable = /sbb\.ch|trainline|raileurope|deutschebahn|bahn\.de|oebb\.at/i.test(item.link)
+                  const LinkIcon = isTimetable ? Train : MapPin
+                  const label = isTimetable ? 'Fahrplan öffnen' : 'Karte öffnen'
+                  return (
+                    <a className="tb-tl-link" href={item.link} target="_blank" rel="noopener noreferrer">
+                      <LinkIcon size={12} aria-hidden="true" /> {label}
+                      <ExternalLink size={11} aria-hidden="true" />
+                    </a>
+                  )
+                })()}
               </div>
             </li>
           )
