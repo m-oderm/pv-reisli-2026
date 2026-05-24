@@ -2723,20 +2723,20 @@ function Abschied() {
   const secret = useSecretMode()
   const facts = [
     { Icon: CalendarDays, label: secret ? 'Operationsdauer' : 'Reisedauer', value: '4 Tage' },
-    { Icon: Users, label: secret ? 'Eingesetzte Kraefte' : 'Mannschaft', value: '6 Mann' },
+    { Icon: Users, label: secret ? 'Eingesetzte Kräfte' : 'Mannschaft', value: '6 Mann' },
     { Icon: Footprints, label: 'Wanderschuhe', value: '0 Paare verwendet' },
-    { Icon: Beer, label: 'Durstplanung', value: 'plangemaess vollstreckt' },
+    { Icon: Beer, label: 'Durstplanung', value: 'plangemäss vollstreckt' },
     { Icon: Shirt, label: 'PV-Polo-Quote', value: 'erfreulich hoch' },
-    { Icon: ShieldCheck, label: 'Restwuerde', value: 'weitgehend sichergestellt' }
+    { Icon: ShieldCheck, label: 'Restwürde', value: 'weitgehend sichergestellt' }
   ]
   const kicker = secret ? 'MISSION ARCHIVIERT' : 'Reisebericht abgegeben'
   const title = secret ? 'Akte geschlossen' : 'Das war PV-Reisli 2026'
   const farewell = secret
-    ? 'Operation erfolgreich beendet. Mannschaft entlassen. Akte versiegelt. Pegelspitze Reisen bleibt im Untergrund, bis das naechste Tarnmanoever ruft.'
-    : 'Vier Tage Mission, sechs Mann, eine ordentliche Eskalation und erstaunlich wenig Schaden. Pegelspitze Reisen verbeugt sich, raeumt die Aktendeckel auf und plant heimlich die naechste Operation.'
+    ? 'Operation erfolgreich beendet. Mannschaft entlassen. Akte versiegelt. Pegelspitze Reisen bleibt im Untergrund, bis das nächste Tarnmanöver ruft.'
+    : 'Vier Tage Mission, sechs Mann, eine ordentliche Eskalation und erstaunlich wenig Schaden. Pegelspitze Reisen verbeugt sich, räumt die Aktendeckel auf und plant heimlich die nächste Operation.'
   const ps = secret
-    ? 'Naechster Einsatz: vertraulich. Anweisungen folgen ueber die ueblichen Kanaele.'
-    : 'Naechster Einsatz: noch klassifiziert. Wer Hinweise hat, meldet sich bei der Reiseleitung.'
+    ? 'Nächster Einsatz: vertraulich. Anweisungen folgen über die üblichen Kanäle.'
+    : 'Nächster Einsatz: noch klassifiziert. Wer Hinweise hat, meldet sich bei der Reiseleitung.'
 
   return (
     <section id="abschied" className="section abschied-section">
