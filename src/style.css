@@ -3120,12 +3120,16 @@ main { flex: 1; }
     background: rgba(184, 138, 59, 0.2);
     color: var(--gold-soft);
   }
+  .tb-tile-thirst {
+    background: rgba(216, 176, 106, 0.05);
+    border-color: rgba(216, 176, 106, 0.25);
+  }
   .tb-tile-thirst .tb-tile-label {
-    color: #b6d8c8;
+    color: var(--gold-soft);
   }
   .tb-tile-thirst .tb-tile-icon {
-    background: rgba(111, 179, 156, 0.2);
-    color: #b6d8c8;
+    background: rgba(216, 176, 106, 0.18);
+    color: var(--gold-soft);
   }
   .travel-status-card {
     background: rgba(247, 236, 209, 0.05);
