@@ -41,14 +41,14 @@ const ANREISE_ROUTE = [
   {
     kind: 'static',
     time: '11:10',
-    revealAt: '2026-05-30T10:50:00+02:00',
+    revealAt: '2026-05-30T10:40:00+02:00',
     label: 'Umstieg',
     detail: 'FR 9612, ca. 1 h 6 min'
   },
   {
     kind: 'static',
     time: '12:16',
-    revealAt: '2026-05-30T11:10:00+02:00',
+    revealAt: '2026-05-30T11:00:00+02:00',
     label: 'Ankunft am Ziel',
     detail: null
   }
