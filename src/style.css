@@ -2012,15 +2012,15 @@ main { flex: 1; }
 }
 
 .travel-status-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto auto 1fr;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 14px 0 0;
-  padding: 10px 14px;
+  gap: 12px;
+  margin: 0 0 18px;
+  padding: 12px 16px;
   border-radius: 12px;
   background: rgba(11, 34, 61, 0.05);
-  border: 1px solid rgba(11, 34, 61, 0.12);
+  border: 1px solid rgba(11, 34, 61, 0.14);
 }
 .travel-status-label {
   font-size: 10px;
@@ -2028,16 +2028,19 @@ main { flex: 1; }
   text-transform: uppercase;
   color: var(--gold-deep);
   font-weight: 700;
+  white-space: nowrap;
 }
 .travel-status-pill {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.4px;
   font-variant-numeric: lining-nums tabular-nums;
+  white-space: nowrap;
+  justify-self: start;
 }
 .travel-status-pill.is-ok {
   background: rgba(22, 61, 52, 0.16);
@@ -2054,20 +2057,42 @@ main { flex: 1; }
 .travel-status-msg {
   font-size: 13px;
   color: var(--ink-soft);
+  line-height: 1.45;
+}
+@media (max-width: 620px) {
+  .travel-status-card {
+    grid-template-columns: auto 1fr;
+    gap: 6px 10px;
+    padding: 12px 14px;
+  }
+  .travel-status-label { grid-column: 1; grid-row: 1; align-self: center; }
+  .travel-status-pill { grid-column: 2; grid-row: 1; justify-self: start; align-self: center; }
+  .travel-status-msg { grid-column: 1 / -1; grid-row: 2; font-size: 13.5px; }
 }
 
 .tb-focus-head { margin-bottom: 8px; }
 .tb-day-hint {
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 8px;
   margin: 0 0 16px;
-  padding: 8px 14px;
+  padding: 10px 16px;
   background: rgba(184, 138, 59, 0.12);
   border-radius: 999px;
   font-size: 13px;
+  line-height: 1.45;
   color: var(--gold-deep);
   font-weight: 600;
+}
+.tb-day-hint svg { flex: 0 0 auto; margin-top: 2px; }
+@media (max-width: 620px) {
+  .tb-day-hint {
+    display: flex;
+    width: 100%;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin: 0;
+  }
 }
 
 .tb-next-up {
