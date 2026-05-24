@@ -19,14 +19,51 @@ const DEFAULT_MESSAGE = 'Die Reise läuft planmässig.'
 const UNKNOWN_MESSAGE =
   'Live-Zuginfo derzeit nicht verfügbar. Die Reiseleitung wirkt dennoch zuversichtlich.'
 
-// Statische Anreise-Route. Mailand bleibt als Umsteige-Knoten sichtbar,
-// das eigentliche Endziel wird nicht genannt.
+// Anreise-Route. Stops erscheinen schrittweise (revealAt). Schweizer Teil
+// (kind: sbb_dep, sbb_arr) wird mit Live-Daten angereichert, italienischer
+// Teil bleibt statisch. Mailand ist Zwischenhalt und nicht in der
+// Geheim-Wortliste, das Endziel bleibt unbenannt.
 const ANREISE_ROUTE = [
-  { time: '08:00', label: 'Abfahrt Bahnhof Zug', detail: 'EC 13 Richtung Mailand' },
-  { time: '10:50', label: 'Ankunft Mailand Centrale', detail: '2 h 50 min Fahrzeit' },
-  { time: '11:10', label: 'Umstieg', detail: 'FR 9612, ca. 1 h 6 min' },
-  { time: '12:16', label: 'Ankunft am Ziel', detail: null }
+  {
+    kind: 'sbb_dep',
+    time: '08:00',
+    revealAt: '2026-05-30T07:45:00+02:00',
+    label: 'Abfahrt Bahnhof Zug',
+    detail: 'EC 13 Richtung Mailand'
+  },
+  {
+    kind: 'sbb_arr',
+    time: '10:50',
+    revealAt: '2026-05-30T08:00:00+02:00',
+    label: 'Ankunft Mailand Centrale',
+    detail: '2 h 50 min Fahrzeit'
+  },
+  {
+    kind: 'static',
+    time: '11:10',
+    revealAt: '2026-05-30T10:50:00+02:00',
+    label: 'Umstieg',
+    detail: 'FR 9612, ca. 1 h 6 min'
+  },
+  {
+    kind: 'static',
+    time: '12:16',
+    revealAt: '2026-05-30T11:10:00+02:00',
+    label: 'Ankunft am Ziel',
+    detail: null
+  }
 ]
+
+function hmInZurich(iso) {
+  const ms = Date.parse(iso)
+  if (Number.isNaN(ms)) return null
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Zurich',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(new Date(ms))
+}
 
 export default {
   async fetch(request) {
@@ -35,11 +72,43 @@ export default {
       return jsonResponse({ error: 'method_not_allowed' }, 405)
     }
 
+    const now = Date.now()
     const status = await fetchSbbStatus()
-    return jsonResponse(status, 200, {
-      'Cache-Control': 'public, max-age=60'
-    })
+    const route = buildRoute(status, now)
+    return jsonResponse(
+      { ...status, route },
+      200,
+      { 'Cache-Control': 'public, max-age=60' }
+    )
   }
+}
+
+function buildRoute(status, nowMs) {
+  const liveDepTime = status?.realtimeDeparture
+    ? hmInZurich(status.realtimeDeparture)
+    : null
+  const liveArrTime = status?.realtimeArrival
+    ? hmInZurich(status.realtimeArrival)
+    : null
+  const platform = status?.platform || null
+  return ANREISE_ROUTE
+    .filter((stop) => Date.parse(stop.revealAt) <= nowMs)
+    .map((stop) => {
+      const out = { ...stop }
+      delete out.revealAt
+      if (stop.kind === 'sbb_dep') {
+        if (liveDepTime) out.time = liveDepTime
+        if (platform) out.platform = platform
+        if (typeof status?.delayMinutes === 'number' && status.delayMinutes > 0) {
+          out.delayMinutes = status.delayMinutes
+        }
+      }
+      if (stop.kind === 'sbb_arr' && liveArrTime) {
+        out.time = liveArrTime
+      }
+      delete out.kind
+      return out
+    })
 }
 
 async function fetchSbbStatus() {
@@ -60,10 +129,13 @@ async function fetchSbbStatus() {
     if (!conn) throw new Error('no connection')
 
     const from = conn.from || {}
+    const to = conn.to || {}
     const plannedDeparture = from.departure || null
+    const plannedArrival = to.arrival || null
     const plannedPlatform = from.platform || null
     const realtimePlatform = from.prognosis?.platform || null
     const realtimeDeparture = from.prognosis?.departure || null
+    const realtimeArrival = to.prognosis?.arrival || null
     const delayMin = typeof from.delay === 'number' ? from.delay : 0
 
     let status = 'on_time'
@@ -72,7 +144,6 @@ async function fetchSbbStatus() {
       status = 'delayed'
       message = `Leichte Verzögerung: ${delayMin} Minuten. Durstplanung bleibt stabil.`
     } else if (delayMin === 0 && realtimeDeparture && realtimeDeparture !== plannedDeparture) {
-      // Prognose weicht ab, aber kein delay-Feld → vorsichtshalber als delayed flag
       status = 'delayed'
       message = 'Abfahrtszeit verschoben. Bitte Anzeigetafel beachten.'
     }
@@ -84,8 +155,10 @@ async function fetchSbbStatus() {
       delayMinutes: delayMin,
       platform,
       plannedDeparture,
+      plannedArrival,
+      realtimeDeparture,
+      realtimeArrival,
       message,
-      route: ANREISE_ROUTE,
       updatedAt: new Date().toISOString()
     }
   } catch {
@@ -94,8 +167,10 @@ async function fetchSbbStatus() {
       delayMinutes: null,
       platform: null,
       plannedDeparture: null,
+      plannedArrival: null,
+      realtimeDeparture: null,
+      realtimeArrival: null,
       message: UNKNOWN_MESSAGE,
-      route: ANREISE_ROUTE,
       updatedAt: new Date().toISOString()
     }
   }

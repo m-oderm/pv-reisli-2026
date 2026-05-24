@@ -2289,10 +2289,20 @@ function AnreiseRoute({ route, secret }) {
       <ol className="anreise-route-list">
         {route.map((stop, idx) => (
           <li key={idx} className="anreise-route-item">
-            <span className="anreise-route-time">{stop.time}</span>
+            <span className="anreise-route-time">
+              {stop.time}
+              {typeof stop.delayMinutes === 'number' && stop.delayMinutes > 0 && (
+                <span className="anreise-route-delay">+{stop.delayMinutes}</span>
+              )}
+            </span>
             <div className="anreise-route-body">
               <div className="anreise-route-stop">{stop.label}</div>
               {stop.detail && <div className="anreise-route-detail">{stop.detail}</div>}
+              {stop.platform && (
+                <span className="anreise-route-platform">
+                  <Train size={11} aria-hidden="true" /> Gleis {stop.platform}
+                </span>
+              )}
             </div>
           </li>
         ))}
@@ -2315,11 +2325,6 @@ function TravelStatusCard({ status, secret }) {
       <span className="travel-status-label">{label}</span>
       <span className={`travel-status-pill ${pillClass}`}>{pillText}</span>
       <span className="travel-status-msg">{status.message}</span>
-      {status.platform && (
-        <span className="travel-status-platform">
-          <Train size={12} aria-hidden="true" /> Gleis {status.platform}
-        </span>
-      )}
     </div>
   )
 }

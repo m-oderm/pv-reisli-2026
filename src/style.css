@@ -2111,6 +2111,27 @@ main { flex: 1; }
   color: var(--ink-soft);
   line-height: 1.4;
 }
+.anreise-route-delay {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--orange);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.anreise-route-platform {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(184, 138, 59, 0.16);
+  color: var(--gold-deep);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
 
 .travel-status-platform {
   display: inline-flex;
@@ -3125,6 +3146,11 @@ main { flex: 1; }
 .app.secret-mode .anreise-route-item + .anreise-route-item {
   border-top-color: rgba(74, 222, 128, 0.22);
 }
+.app.secret-mode .anreise-route-platform {
+  background: rgba(250, 204, 21, 0.18);
+  color: #facc15;
+}
+.app.secret-mode .anreise-route-delay { color: #facc15; }
 .app.secret-mode .tb-other-day {
   background: rgba(74, 222, 128, 0.05);
   border-color: rgba(74, 222, 128, 0.25);
@@ -3375,6 +3401,11 @@ main { flex: 1; }
   .anreise-route-item + .anreise-route-item {
     border-top-color: rgba(247, 236, 209, 0.18);
   }
+  .anreise-route-platform {
+    background: rgba(216, 176, 106, 0.22);
+    color: var(--gold-soft);
+  }
+  .anreise-route-delay { color: var(--gold-soft); }
   .tb-tile-weather {
     background: rgba(247, 236, 209, 0.04);
     border-color: rgba(247, 236, 209, 0.18);
