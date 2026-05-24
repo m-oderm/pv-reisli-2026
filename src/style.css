@@ -2059,14 +2059,29 @@ main { flex: 1; }
   color: var(--ink-soft);
   line-height: 1.45;
 }
+.travel-status-platform {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(184, 138, 59, 0.16);
+  color: var(--gold-deep);
+  font-variant-numeric: lining-nums tabular-nums;
+  justify-self: end;
+  white-space: nowrap;
+}
 @media (max-width: 620px) {
   .travel-status-card {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto 1fr auto;
     gap: 6px 10px;
     padding: 12px 14px;
   }
   .travel-status-label { grid-column: 1; grid-row: 1; align-self: center; }
   .travel-status-pill { grid-column: 2; grid-row: 1; justify-self: start; align-self: center; }
+  .travel-status-platform { grid-column: 3; grid-row: 1; align-self: center; }
   .travel-status-msg { grid-column: 1 / -1; grid-row: 2; font-size: 13.5px; }
 }
 
@@ -3042,6 +3057,10 @@ main { flex: 1; }
   color: #86efac;
 }
 .app.secret-mode .travel-status-msg { color: #86efac; }
+.app.secret-mode .travel-status-platform {
+  background: rgba(250, 204, 21, 0.18);
+  color: #facc15;
+}
 .app.secret-mode .tb-other-day {
   background: rgba(74, 222, 128, 0.05);
   border-color: rgba(74, 222, 128, 0.25);
@@ -3276,6 +3295,10 @@ main { flex: 1; }
   .travel-status-pill.is-mute {
     background: rgba(247, 236, 209, 0.1);
     color: var(--ink-soft);
+  }
+  .travel-status-platform {
+    background: rgba(216, 176, 106, 0.2);
+    color: var(--gold-soft);
   }
   .tb-tile-weather {
     background: rgba(247, 236, 209, 0.04);

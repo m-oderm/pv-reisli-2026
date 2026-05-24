@@ -2295,6 +2295,11 @@ function TravelStatusCard({ status, secret }) {
       <span className="travel-status-label">{label}</span>
       <span className={`travel-status-pill ${pillClass}`}>{pillText}</span>
       <span className="travel-status-msg">{status.message}</span>
+      {status.platform && (
+        <span className="travel-status-platform">
+          <Train size={12} aria-hidden="true" /> Gleis {status.platform}
+        </span>
+      )}
     </div>
   )
 }

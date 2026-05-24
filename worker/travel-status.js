@@ -1,16 +1,23 @@
 /**
  * PV-Reisli 2026: Travel-Status Endpoint
  *
- * Mock-Antwort fuer Live-Zuginfo. Spaeter durch SBB- oder Open-Data-API
- * austauschbar. Antwort enthaelt bewusst keine Ziele, Zwischenhalte
- * oder Zugnummern.
+ * Holt Echtzeit-Status der Anreise via transport.opendata.ch (SBB OpenData).
+ * Liefert dem Frontend nur sanitisierte Felder:
+ *   status, delayMinutes, platform, plannedDeparture, message, updatedAt
+ *
+ * Der Zielort (Mailand) wird im Worker als Routing-Parameter genutzt,
+ * erscheint aber NICHT im Response. Geheimhaltung bleibt gewahrt.
  */
 
-const DEFAULT_STATUS = {
-  status: 'on_time',
-  delayMinutes: 0,
-  message: 'Die Reise läuft planmässig.'
-}
+const SBB_API = 'https://transport.opendata.ch/v1/connections'
+const ANREISE_FROM = 'Zug'
+const ANREISE_TO = 'Milano Centrale'
+const ANREISE_DATE = '2026-05-30'
+const ANREISE_TIME = '08:00'
+
+const DEFAULT_MESSAGE = 'Die Reise läuft planmässig.'
+const UNKNOWN_MESSAGE =
+  'Live-Zuginfo derzeit nicht verfügbar. Die Reiseleitung wirkt dennoch zuversichtlich.'
 
 export default {
   async fetch(request) {
@@ -19,14 +26,67 @@ export default {
       return jsonResponse({ error: 'method_not_allowed' }, 405)
     }
 
-    return jsonResponse(
-      {
-        ...DEFAULT_STATUS,
-        updatedAt: new Date().toISOString()
-      },
-      200,
-      { 'Cache-Control': 'public, max-age=60' }
-    )
+    const status = await fetchSbbStatus()
+    return jsonResponse(status, 200, {
+      'Cache-Control': 'public, max-age=60'
+    })
+  }
+}
+
+async function fetchSbbStatus() {
+  const params = new URLSearchParams({
+    from: ANREISE_FROM,
+    to: ANREISE_TO,
+    date: ANREISE_DATE,
+    time: ANREISE_TIME,
+    limit: '1'
+  })
+  try {
+    const res = await fetch(`${SBB_API}?${params.toString()}`, {
+      cf: { cacheTtl: 60, cacheEverything: true }
+    })
+    if (!res.ok) throw new Error(`sbb ${res.status}`)
+    const body = await res.json()
+    const conn = body?.connections?.[0]
+    if (!conn) throw new Error('no connection')
+
+    const from = conn.from || {}
+    const plannedDeparture = from.departure || null
+    const plannedPlatform = from.platform || null
+    const realtimePlatform = from.prognosis?.platform || null
+    const realtimeDeparture = from.prognosis?.departure || null
+    const delayMin = typeof from.delay === 'number' ? from.delay : 0
+
+    let status = 'on_time'
+    let message = DEFAULT_MESSAGE
+    if (delayMin > 0) {
+      status = 'delayed'
+      message = `Leichte Verzögerung: ${delayMin} Minuten. Durstplanung bleibt stabil.`
+    } else if (delayMin === 0 && realtimeDeparture && realtimeDeparture !== plannedDeparture) {
+      // Prognose weicht ab, aber kein delay-Feld → vorsichtshalber als delayed flag
+      status = 'delayed'
+      message = 'Abfahrtszeit verschoben. Bitte Anzeigetafel beachten.'
+    }
+
+    const platform = realtimePlatform || plannedPlatform || null
+
+    return {
+      status,
+      delayMinutes: delayMin,
+      platform,
+      plannedDeparture,
+      message,
+      updatedAt: new Date().toISOString()
+    }
+  } catch {
+    return {
+      status: 'unknown',
+      delayMinutes: null,
+      platform: null,
+      plannedDeparture: null,
+      message: UNKNOWN_MESSAGE,
+      updatedAt: new Date().toISOString()
+    }
   }
 }
 
