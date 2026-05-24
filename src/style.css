@@ -3131,6 +3131,15 @@ main { flex: 1; }
     background: rgba(216, 176, 106, 0.18);
     color: var(--gold-soft);
   }
+  .tb-copy-btn {
+    background: var(--gold-soft);
+    color: #0b1626;
+  }
+  .tb-copy-btn:hover { background: var(--gold); color: #0b1626; }
+  .tb-day-hint {
+    background: rgba(216, 176, 106, 0.18);
+    color: var(--gold-soft);
+  }
   .travel-status-card {
     background: rgba(247, 236, 209, 0.05);
     border-color: rgba(247, 236, 209, 0.15);
