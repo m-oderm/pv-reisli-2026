@@ -384,6 +384,15 @@ function buildTripProgramUrl() {
   return `${base}?${params.toString()}`
 }
 
+function buildTravelStatusUrl() {
+  const base = '/api/travel-status'
+  if (!NOW_OVERRIDE_MS) return base
+  const params = new URLSearchParams()
+  params.set('now', new Date(NOW_OVERRIDE_MS).toISOString())
+  if (TEST_KEY) params.set('testKey', TEST_KEY)
+  return `${base}?${params.toString()}`
+}
+
 function useTripProgram() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -449,7 +458,7 @@ function useTravelStatus() {
     })
     const tick = async () => {
       try {
-        const res = await fetch('/api/travel-status', { cache: 'no-store' })
+        const res = await fetch(buildTravelStatusUrl(), { cache: 'no-store' })
         if (!res.ok) throw new Error(`status ${res.status}`)
         const body = await res.json()
         if (active) setStatus(body)

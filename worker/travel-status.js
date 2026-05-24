@@ -65,6 +65,8 @@ function hmInZurich(iso) {
   }).format(new Date(ms))
 }
 
+const TEST_OVERRIDE_TOKEN = 'pegelspitze-bunker-2026'
+
 export default {
   async fetch(request) {
     if (request.method === 'OPTIONS') return preflight()
@@ -72,7 +74,8 @@ export default {
       return jsonResponse({ error: 'method_not_allowed' }, 405)
     }
 
-    const now = Date.now()
+    const url = new URL(request.url)
+    const now = resolveNow(url)
     const status = await fetchSbbStatus()
     const route = buildRoute(status, now)
     return jsonResponse(
@@ -81,6 +84,18 @@ export default {
       { 'Cache-Control': 'public, max-age=60' }
     )
   }
+}
+
+function resolveNow(url) {
+  const testKey = url.searchParams.get('testKey')
+  if (testKey === TEST_OVERRIDE_TOKEN) {
+    const override = url.searchParams.get('now')
+    if (override) {
+      const parsed = Date.parse(override)
+      if (!Number.isNaN(parsed)) return parsed
+    }
+  }
+  return Date.now()
 }
 
 function buildRoute(status, nowMs) {
