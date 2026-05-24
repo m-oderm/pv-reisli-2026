@@ -84,6 +84,7 @@ const EASE_OUT_SOFT = [0.16, 1, 0.3, 1]
 const COUNTDOWN_TARGET_MS = new Date('2026-05-30T07:45:00+02:00').getTime()
 const TRAVEL_QUEST_START_MS = COUNTDOWN_TARGET_MS
 const SATURDAY_UNLOCK_MS = new Date('2026-05-30T12:20:00+02:00').getTime()
+const SATURDAY_MIDNIGHT_MS = new Date('2026-05-30T00:00:00+02:00').getTime()
 const TRIP_END_MS = new Date('2026-06-02T19:00:00+02:00').getTime()
 
 const NAV_ITEMS_PRE_TRIP = [
@@ -1480,7 +1481,10 @@ function DayDetailModal({ day, onClose }) {
 function Wetter() {
   const { data, loading, isFallback, updatedAt, reload } = useTravelConditions()
   const secret = useSecretMode()
-  const visibleDays = useMemo(() => deriveDays(data), [data])
+  const allDays = useMemo(() => deriveDays(data), [data])
+  const today = isoDateInZurich(effectiveNow())
+  // Vergangene Reisetage ausblenden, sobald sie abgeschlossen sind.
+  const visibleDays = allDays.filter((d) => d.iso >= today)
   const [openIso, setOpenIso] = useState(null)
   const openDay = visibleDays.find((day) => day.iso === openIso) ?? null
 
@@ -2227,6 +2231,7 @@ function Tagesbriefing({ tripStarted, now }) {
     const pinned = pinnedDayId ? tabbableDays.find((d) => d.id === pinnedDayId) : null
     const focus = pinned ?? defaultFocus
     const lockedRest = (data.days ?? []).filter((d) => d.locked)
+    const showStatus = now >= SATURDAY_MIDNIGHT_MS && now < TRIP_END_MS
     content = (
       <>
         {tabbableDays.length > 1 && (
@@ -2238,6 +2243,7 @@ function Tagesbriefing({ tripStarted, now }) {
             secret={secret}
           />
         )}
+        {showStatus && travelStatus && <TravelStatusCard status={travelStatus} secret={secret} />}
         {focus && <FocusDayCard day={focus} now={now} secret={secret} weather={weather} />}
         {lockedRest.length > 0 && (
           <div className="tb-other-days">
@@ -2318,8 +2324,6 @@ function TravelQuestCard({ quest, travelStatus, now, secret }) {
       <p className="tb-motto">«{quest.motto}»</p>
       <p className="tb-intro">{quest.intro}</p>
       <p className="tb-hint-meta muted">{quest.hint}</p>
-
-      <TravelStatusCard status={travelStatus} secret={secret} />
 
       <ol className="tb-hint-list">
         {hints.map((h) => (
