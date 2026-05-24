@@ -2447,15 +2447,16 @@ function FocusDayCard({ day, now, secret, weather }) {
         })}
       </ol>
 
-      {day.leaderOrder && (
-        <p className="tb-day-hint">
-          <ShieldCheck size={14} aria-hidden="true" /> {labels.order}: {day.leaderOrder}
-        </p>
-      )}
-
-      <button type="button" className="tb-copy-btn" onClick={handleCopyBriefing}>
-        <Copy size={14} aria-hidden="true" /> {secret ? 'Befehl kopieren' : 'Tagesbriefing kopieren'}
-      </button>
+      <div className="tb-footer">
+        {day.leaderOrder && (
+          <p className="tb-day-hint">
+            <ShieldCheck size={14} aria-hidden="true" /> {labels.order}: {day.leaderOrder}
+          </p>
+        )}
+        <button type="button" className="tb-copy-btn" onClick={handleCopyBriefing}>
+          <Copy size={14} aria-hidden="true" /> {secret ? 'Befehl kopieren' : 'Tagesbriefing kopieren'}
+        </button>
+      </div>
     </Card>
   )
 }

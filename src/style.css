@@ -2441,6 +2441,19 @@ main { flex: 1; }
   color: var(--navy);
 }
 
+.tb-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-top: 18px;
+}
+.tb-footer .tb-day-hint { margin: 0; }
+@media (max-width: 620px) {
+  .tb-footer { gap: 12px; }
+  .tb-footer .tb-copy-btn { width: 100%; justify-content: center; }
+}
+
 /* ---------- Secret Toast (immer aktiv, im Geheimmodus mit Phosphor-Glow) ---------- */
 
 .secret-toast {
