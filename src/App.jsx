@@ -762,13 +762,160 @@ function Ribbon({ children }) {
   )
 }
 
+function getHeroPhase(nowMs) {
+  if (nowMs < TRAVEL_QUEST_START_MS) return 'pre'
+  if (nowMs < SATURDAY_UNLOCK_MS) return 'anreise'
+  if (nowMs < TRIP_END_MS) return 'fokus'
+  return 'finale'
+}
+
+function getPreHeroContent(secret) {
+  return {
+    stamp: secret ? 'KLASSIFIZIERT · OPERATION 30.05.2026' : 'Geheime Mission · 30.05.2026',
+    ribbon: 'Es wird ernst!',
+    note: secret
+      ? <><Sparkles size={14} aria-hidden="true" /> Tarnung erfolgreich. Quelle verlässlich.</>
+      : <><Sparkles size={14} aria-hidden="true" /> Die falsche Fährte war Absicht <span aria-hidden="true">;)</span></>,
+    facts: [
+      { Icon: Train, text: '07:45 · Bahnhof Zug' },
+      { Icon: CalendarDays, text: '30.05. bis 02.06.2026' },
+      { Icon: Lock, text: 'Ziel: klassifiziert' }
+    ]
+  }
+}
+
+function getAnreiseHeroContent(travelStatus, secret) {
+  const route = travelStatus?.route ?? []
+  // Naechster Stop: der erste Stop dessen Zeit noch nicht in der Vergangenheit liegt
+  const nowHm = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Zurich',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(new Date(effectiveNow()))
+  const nextStop = route.find((s) => typeof s.time === 'string' && /^\d{2}:\d{2}$/.test(s.time) && s.time > nowHm)
+    ?? route[route.length - 1]
+    ?? null
+
+  let statusText = 'Unterwegs'
+  if (travelStatus?.status === 'on_time') statusText = 'pünktlich'
+  else if (travelStatus?.status === 'delayed' && typeof travelStatus.delayMinutes === 'number') {
+    statusText = `+${travelStatus.delayMinutes} min`
+  } else if (travelStatus?.status === 'unknown') statusText = 'Lage unklar'
+
+  return {
+    stamp: secret ? 'KLASSIFIZIERT · ANFAHRT AKTIV' : 'MISSION LÄUFT · ANREISE',
+    ribbon: 'Es ist soweit!',
+    note: (
+      <>
+        <Sparkles size={14} aria-hidden="true" /> {travelStatus?.message ?? 'Der Zug rollt.'}
+      </>
+    ),
+    facts: [
+      {
+        Icon: Train,
+        text: nextStop ? `${nextStop.time} · ${nextStop.label}` : 'Unterwegs'
+      },
+      { Icon: CalendarDays, text: 'Tag 1 von 4' },
+      { Icon: ShieldCheck, text: statusText }
+    ]
+  }
+}
+
+function getFokusHeroContent(program, weather, nowMs, secret) {
+  const days = program?.days ?? []
+  const day = getCurrentFocusDay(days, nowMs)
+  if (!day) return getPreHeroContent(secret)
+  const idx = days.indexOf(day)
+  const dayNo = idx >= 0 ? idx + 1 : 1
+  const total = days.length || 4
+
+  const fmtDay = new Intl.DateTimeFormat('de-CH', {
+    timeZone: 'Europe/Zurich',
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit'
+  })
+  const todayLabel = `Heute: ${fmtDay.format(new Date(`${day.date}T12:00:00+02:00`))}`
+
+  const nextItem = getNextItemFromDay(day, nowMs)
+  const noteText = nextItem
+    ? `Nächster Punkt: ${nextItem.time} · ${nextItem.title}`
+    : day.dayHint || day.intro || 'Tagesbriefing offen.'
+
+  const live = findWeatherForDate(weather, day.date)
+  let WeatherIcon = CloudSun
+  let weatherText = day.weatherBrief?.split('.')[0] ?? 'Wetterlage offen'
+  if (live && typeof live.max === 'number') {
+    const info = weatherCodeToInfo(live.code ?? 2, false)
+    if (info?.Icon) WeatherIcon = info.Icon
+    const max = Math.round(live.max)
+    const pop = typeof live.pop === 'number' ? Math.round(live.pop) : null
+    weatherText = pop != null && pop >= 5 ? `${max}° · ${pop} %` : `${max}°`
+  }
+
+  return {
+    stamp: secret
+      ? `AKTIVER TAGESBEFEHL · TAG ${dayNo} VON ${total}`
+      : `${day.chapter} · TAG ${dayNo} VON ${total}`,
+    ribbon: day.motto || 'Heute aktiv.',
+    note: (
+      <>
+        <Clock size={14} aria-hidden="true" /> {noteText}
+      </>
+    ),
+    facts: [
+      { Icon: CalendarDays, text: todayLabel },
+      { Icon: WeatherIcon, text: weatherText },
+      { Icon: Sparkles, text: `Tag ${dayNo} von ${total}` }
+    ]
+  }
+}
+
+function getFinaleHeroContent(secret) {
+  return {
+    stamp: secret ? 'MISSION ARCHIVIERT' : 'MISSION ABGESCHLOSSEN · 02.06.2026',
+    ribbon: 'Es war ernst!',
+    note: (
+      <>
+        <Sparkles size={14} aria-hidden="true" /> 4 Tage, 6 Mann, eine kontrollierte Eskalation.
+      </>
+    ),
+    facts: [
+      { Icon: CalendarDays, text: '30.05. bis 02.06.2026' },
+      { Icon: Users, text: '6 Mann angetreten' },
+      { Icon: ShieldCheck, text: 'Akte geschlossen' }
+    ]
+  }
+}
+
 function Hero() {
   const secret = useSecretMode()
+  const [now, setNow] = useState(() => effectiveNow())
+  useEffect(() => {
+    if (NOW_OVERRIDE_MS) return
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
+  const phase = getHeroPhase(now)
+
+  // Hooks immer aufrufen (Hook-Rules), Daten je Phase nutzen
+  const travelStatus = useTravelStatus()
+  const { data: program } = useTripProgram()
+  const { data: weather } = useTravelConditions()
+
+  const content = useMemo(() => {
+    if (phase === 'anreise') return getAnreiseHeroContent(travelStatus, secret)
+    if (phase === 'fokus') return getFokusHeroContent(program, weather, now, secret)
+    if (phase === 'finale') return getFinaleHeroContent(secret)
+    return getPreHeroContent(secret)
+  }, [phase, travelStatus, program, weather, now, secret])
+
   return (
     <section id="hero" className="hero">
       <div className="hero-frame">
         <div className="hero-stamp" aria-hidden="true">
-          <Lock size={14} /> {secret ? 'KLASSIFIZIERT · OPERATION 30.05.2026' : 'Geheime Mission · 30.05.2026'}
+          <Lock size={14} /> {content.stamp}
         </div>
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
@@ -780,28 +927,17 @@ function Hero() {
           <span className="hero-year">2026</span>
         </motion.h1>
 
-        <Ribbon>Es wird ernst!</Ribbon>
+        <Ribbon>{content.ribbon}</Ribbon>
 
-        <p className="hero-note">
-          <Sparkles size={14} />{' '}
-          {secret
-            ? 'Tarnung erfolgreich. Quelle verlässlich.'
-            : <>Die falsche Fährte war Absicht <span aria-hidden="true">;)</span></>}
-        </p>
+        <p className="hero-note">{content.note}</p>
 
         <div className="hero-quickfacts">
-          <div className="qf">
-            <Train size={18} />
-            <span>07:45 · Bahnhof Zug</span>
-          </div>
-          <div className="qf">
-            <CalendarDays size={18} />
-            <span>30.05. bis 02.06.2026</span>
-          </div>
-          <div className="qf">
-            <Lock size={18} />
-            <span>Ziel: klassifiziert</span>
-          </div>
+          {content.facts.map((f, i) => (
+            <div key={i} className="qf">
+              <f.Icon size={18} />
+              <span>{f.text}</span>
+            </div>
+          ))}
         </div>
       </div>
     </section>
