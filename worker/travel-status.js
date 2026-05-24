@@ -15,6 +15,14 @@ const ANREISE_TO = 'Milano Centrale'
 const ANREISE_DATE = '2026-05-30'
 const ANREISE_TIME = '08:00'
 
+// ViaggiaTreno spricht nur plain HTTP, Cloudflare Workers nur HTTPS.
+// r.jina.ai ist ein offener Reader-Proxy, der HTTP-Quellen ueber HTTPS
+// spiegelt. Fragil aber funktional. Fallback: nur statische Daten.
+const VT_PROXY = 'https://r.jina.ai/http://www.viaggiatreno.it/infomobilita/resteasy/viaggiatreno'
+const MILANO_CENTRALE_ID = 'S01700'
+const TORINO_PORTA_NUOVA_ID = 'S00219'
+const TRENITALIA_TRAIN = '9612'
+
 const DEFAULT_MESSAGE = 'Die Reise läuft planmässig.'
 const UNKNOWN_MESSAGE =
   'Live-Zuginfo derzeit nicht verfügbar. Die Reiseleitung wirkt dennoch zuversichtlich.'
@@ -39,14 +47,14 @@ const ANREISE_ROUTE = [
     detail: '2 h 50 min Fahrzeit'
   },
   {
-    kind: 'static',
+    kind: 'trenitalia_dep',
     time: '11:10',
     revealAt: '2026-05-30T10:40:00+02:00',
     label: 'Umstieg',
     detail: 'FR 9612, ca. 1 h 6 min'
   },
   {
-    kind: 'static',
+    kind: 'trenitalia_arr',
     time: '12:16',
     revealAt: '2026-05-30T11:00:00+02:00',
     label: 'Ankunft am Ziel',
@@ -76,8 +84,11 @@ export default {
 
     const url = new URL(request.url)
     const now = resolveNow(url)
-    const status = await fetchSbbStatus()
-    const route = buildRoute(status, now)
+    const [status, trenitalia] = await Promise.all([
+      fetchSbbStatus(),
+      fetchTrenitaliaStatus(now)
+    ])
+    const route = buildRoute(status, trenitalia, now)
     return jsonResponse(
       { ...status, route },
       200,
@@ -98,7 +109,7 @@ function resolveNow(url) {
   return Date.now()
 }
 
-function buildRoute(status, nowMs) {
+function buildRoute(status, trenitalia, nowMs) {
   const liveDepTime = status?.realtimeDeparture
     ? hmInZurich(status.realtimeDeparture)
     : null
@@ -117,13 +128,100 @@ function buildRoute(status, nowMs) {
         if (typeof status?.delayMinutes === 'number' && status.delayMinutes > 0) {
           out.delayMinutes = status.delayMinutes
         }
-      }
-      if (stop.kind === 'sbb_arr' && liveArrTime) {
+      } else if (stop.kind === 'sbb_arr' && liveArrTime) {
         out.time = liveArrTime
+      } else if (stop.kind === 'trenitalia_dep' && trenitalia?.dep) {
+        if (trenitalia.dep.time) out.time = trenitalia.dep.time
+        if (trenitalia.dep.platform) out.platform = trenitalia.dep.platform
+        if (trenitalia.dep.delayMinutes > 0) out.delayMinutes = trenitalia.dep.delayMinutes
+      } else if (stop.kind === 'trenitalia_arr' && trenitalia?.arr) {
+        if (trenitalia.arr.time) out.time = trenitalia.arr.time
+        if (trenitalia.arr.delayMinutes > 0) out.delayMinutes = trenitalia.arr.delayMinutes
       }
       delete out.kind
       return out
     })
+}
+
+/**
+ * Versucht die Trenitalia-Daten via r.jina.ai HTTPS-Proxy auf ViaggiaTreno
+ * zu holen. Liefert { dep, arr } mit time/platform/delayMinutes, oder null
+ * wenn unverfuegbar. Best effort, kein Block bei Fehler.
+ */
+async function fetchTrenitaliaStatus(nowMs) {
+  try {
+    // 1. cerca treno: gibt uns Origin-Station-ID des Zuges am heutigen Tag
+    const cercaUrl = `${VT_PROXY}/cercaNumeroTrenoTrenoAutocomplete/${TRENITALIA_TRAIN}`
+    const cercaRes = await fetch(cercaUrl, {
+      cf: { cacheTtl: 300, cacheEverything: true }
+    })
+    if (!cercaRes.ok) return null
+    const cercaText = await cercaRes.text()
+    // r.jina.ai-Wrap: nach "Markdown Content:" kommt der eigentliche Inhalt
+    const body = cercaText.split('Markdown Content:')[1]?.trim() ?? ''
+    // Format: "9612 - BATTIPAGLIA - 25/05/26|9612-S09823-1779660000000\n..."
+    const lines = body.split('\n').map((l) => l.trim()).filter(Boolean)
+    // Pick die ID-Tupel rechts vom |
+    const ids = lines
+      .map((l) => l.split('|')[1])
+      .filter(Boolean)
+      .map((tuple) => {
+        const parts = tuple.split('-')
+        return { trainNo: parts[0], stationId: parts[1], epoch: parts[2] }
+      })
+    // Bevorzuge ID die zu Milano Centrale passt (unser Zug startet dort)
+    let pick = ids.find((i) => i.stationId === MILANO_CENTRALE_ID)
+    if (!pick) {
+      // Fallback: erster Eintrag heute
+      pick = ids[0]
+    }
+    if (!pick) return null
+
+    // 2. andamentoTreno: holt den Live-Lauf des Zuges
+    const andUrl = `${VT_PROXY}/andamentoTreno/${pick.stationId}/${pick.trainNo}/${pick.epoch}`
+    const andRes = await fetch(andUrl, {
+      cf: { cacheTtl: 60, cacheEverything: true }
+    })
+    if (!andRes.ok) return null
+    const andText = await andRes.text()
+    const andBody = andText.split('Markdown Content:')[1]?.trim() ?? ''
+    let andJson
+    try {
+      andJson = JSON.parse(andBody)
+    } catch {
+      return null
+    }
+    const fermate = Array.isArray(andJson?.fermate) ? andJson.fermate : []
+    if (fermate.length === 0) return null
+
+    const milano = fermate.find((f) => f.id === MILANO_CENTRALE_ID)
+    const torino = fermate.find((f) => f.id === TORINO_PORTA_NUOVA_ID)
+
+    const fromStop = (f, mode) => {
+      if (!f) return null
+      const programmataMs = mode === 'dep' ? f.partenza_teorica : f.arrivo_teorico
+      const effectiveMs = mode === 'dep'
+        ? f.partenzaReale ?? programmataMs
+        : f.arrivoReale ?? programmataMs
+      const platform =
+        f.binarioEffettivoPartenzaDescrizione ??
+        f.binarioProgrammatoPartenzaDescrizione ??
+        null
+      const delay = mode === 'dep' ? f.ritardoPartenza : f.ritardoArrivo
+      return {
+        time: effectiveMs ? hmInZurich(new Date(effectiveMs).toISOString()) : null,
+        platform: mode === 'dep' ? platform : null,
+        delayMinutes: typeof delay === 'number' ? delay : 0
+      }
+    }
+
+    return {
+      dep: fromStop(milano, 'dep'),
+      arr: fromStop(torino, 'arr')
+    }
+  } catch {
+    return null
+  }
 }
 
 async function fetchSbbStatus() {
