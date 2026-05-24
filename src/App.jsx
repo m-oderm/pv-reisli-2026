@@ -496,11 +496,14 @@ function getNextLockedHint(hints, nowMs) {
 }
 
 function getNextItemFromDay(day, nowMs) {
-  if (!day?.items) return null
-  // Items mit konkretem HH:MM koennen mit dem aktuellen Tag verglichen werden.
-  // Andere Items (Vormittag, Nachmittag, danach) zaehlen wir nicht.
+  if (!day?.items?.length) return null
   const today = isoDateInZurich(nowMs)
-  if (today !== day.date) return null
+  // Wenn der Tag noch in der Zukunft liegt, ist sein erstes Item der naechste Fixpunkt.
+  if (today !== day.date) {
+    const dayStartMs = Date.parse(`${day.date}T00:00:00+02:00`)
+    if (nowMs < dayStartMs) return day.items[0]
+    return null
+  }
   const nowDate = new Date(nowMs)
   const fmtHm = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Europe/Zurich',
@@ -509,12 +512,37 @@ function getNextItemFromDay(day, nowMs) {
     hour12: false
   })
   const nowHm = fmtHm.format(nowDate)
+  // Items mit konkretem HH:MM: erstes Item dessen Zeit groesser ist
   for (const item of day.items) {
     if (typeof item.time === 'string' && /^\d{2}:\d{2}$/.test(item.time) && item.time > nowHm) {
       return item
     }
   }
+  // Fallback: textuelle Tageszeiten (Vormittag/Nachmittag/Abend/danach)
+  const hour = parseInt(nowHm.slice(0, 2), 10)
+  const buckets = []
+  if (hour < 12) buckets.push('vormittag', 'morgen')
+  if (hour < 17) buckets.push('nachmittag', 'lunch')
+  if (hour < 22) buckets.push('abend')
+  for (const item of day.items) {
+    if (typeof item.time !== 'string') continue
+    const t = item.time.toLowerCase()
+    if (buckets.some((b) => t.includes(b))) return item
+  }
   return null
+}
+
+function findWeatherForDate(weather, date) {
+  if (!weather?.daily?.time || !date) return null
+  const i = weather.daily.time.indexOf(date)
+  if (i < 0) return null
+  const get = (key) => weather.daily?.[key]?.[i]
+  return {
+    max: get('temperature_2m_max'),
+    min: get('temperature_2m_min'),
+    pop: get('precipitation_probability_max'),
+    code: get('weather_code')
+  }
 }
 
 function formatUnlockHm(iso) {
@@ -2129,6 +2157,7 @@ function Wichtig() {
 function Tagesbriefing({ tripStarted, now }) {
   const { data, loading, error } = useTripProgram()
   const travelStatus = useTravelStatus()
+  const { data: weather } = useTravelConditions()
   const secret = useSecretMode()
 
   const kicker = secret ? 'AKTIVER TAGESBEFEHL' : 'Heute im Fokus'
@@ -2152,7 +2181,7 @@ function Tagesbriefing({ tripStarted, now }) {
     const others = (data.days ?? []).filter((d) => d !== focus)
     content = (
       <>
-        {focus && <FocusDayCard day={focus} now={now} secret={secret} />}
+        {focus && <FocusDayCard day={focus} now={now} secret={secret} weather={weather} />}
         {others.length > 0 && (
           <div className="tb-other-days">
             {others.map((d) => (
@@ -2270,9 +2299,85 @@ function TravelQuestCard({ quest, travelStatus, now, secret }) {
   )
 }
 
-function FocusDayCard({ day, now, secret }) {
+const BRIEFING_LABELS_NORMAL = {
+  weather: 'Wetterlage',
+  dresscode: 'Dresscode',
+  logistics: 'Logistik',
+  food: 'Kulinarik',
+  risk: 'Risiko',
+  thirst: 'Durstlage',
+  concierge: 'Concierge-Hinweis',
+  order: 'Befehl der Reiseleitung'
+}
+const BRIEFING_LABELS_SECRET = {
+  weather: 'Lagebericht',
+  dresscode: 'Uniformvorschrift',
+  logistics: 'Bewegungsplan',
+  food: 'Verpflegung',
+  risk: 'Risikostufe',
+  thirst: 'Durstlage',
+  concierge: 'Concierge-Notiz',
+  order: 'Einsatzbefehl'
+}
+
+function BriefingTile({ Icon, label, text, accent }) {
+  if (!text) return null
+  return (
+    <div className={`tb-tile${accent ? ` tb-tile-${accent}` : ''}`}>
+      <div className="tb-tile-head">
+        <span className="tb-tile-icon" aria-hidden="true"><Icon size={14} /></span>
+        <span className="tb-tile-label">{label}</span>
+      </div>
+      <p className="tb-tile-text">{text}</p>
+    </div>
+  )
+}
+
+function WeatherBriefingTile({ label, brief, live, code }) {
+  const info = code != null ? weatherCodeToInfo(code, false) : null
+  const Icon = info?.Icon ?? CloudSun
+  const hasLive = live && (typeof live.max === 'number' || typeof live.min === 'number')
+  return (
+    <div className="tb-tile tb-tile-weather">
+      <div className="tb-tile-head">
+        <span className="tb-tile-icon" aria-hidden="true"><Icon size={16} /></span>
+        <span className="tb-tile-label">{label}</span>
+      </div>
+      {hasLive && (
+        <div className="tb-tile-weather-live">
+          {typeof live.max === 'number' && (
+            <span className="tb-tile-weather-max">{Math.round(live.max)}°</span>
+          )}
+          {typeof live.min === 'number' && (
+            <span className="tb-tile-weather-min">{Math.round(live.min)}°</span>
+          )}
+          {typeof live.pop === 'number' && live.pop >= 5 && (
+            <span className="tb-tile-weather-pop">
+              <Droplets size={12} aria-hidden="true" /> {Math.round(live.pop)}%
+            </span>
+          )}
+        </div>
+      )}
+      <p className="tb-tile-text">{brief}</p>
+    </div>
+  )
+}
+
+function FocusDayCard({ day, now, secret, weather }) {
   const toast = useToast()
   const nextItem = getNextItemFromDay(day, now)
+  const labels = secret ? BRIEFING_LABELS_SECRET : BRIEFING_LABELS_NORMAL
+  const liveWeather = findWeatherForDate(weather, day.date)
+
+  const today = isoDateInZurich(now)
+  const dayMs = Date.parse(`${day.date}T23:59:59+02:00`)
+  const isToday = today === day.date
+  const isPast = now > dayMs
+  const statusBadge = isToday
+    ? (secret ? 'Aktiver Tagesbefehl' : 'Heute')
+    : isPast
+    ? (secret ? 'Mission archiviert' : 'Abgeschlossen')
+    : (secret ? 'Mission File' : 'Freigegeben')
 
   const handleCopyBriefing = async () => {
     const ok = await copyToClipboard(day.whatsappBriefing ?? '')
@@ -2286,23 +2391,40 @@ function FocusDayCard({ day, now, secret }) {
   return (
     <Card className="card-cream tb-focus">
       <div className="tb-focus-head">
-        <span className="tb-chapter">{day.chapter}</span>
+        <div className="tb-focus-head-row">
+          <span className="tb-chapter">{day.chapter}</span>
+          <span className={`tb-focus-badge${isToday ? ' is-today' : isPast ? ' is-past' : ''}`}>{statusBadge}</span>
+        </div>
         <h3 className="tb-focus-title">{day.title}</h3>
         <p className="tb-motto">«{day.motto}»</p>
       </div>
       <p className="tb-intro">{day.intro}</p>
-      {day.dayHint && (
-        <p className="tb-day-hint">
-          <ShieldCheck size={14} aria-hidden="true" /> {day.dayHint}
-        </p>
-      )}
+
       {nextItem && (
         <div className="tb-next-up">
-          <span className="tb-next-up-label">{secret ? 'NÄCHSTER EINSATZ' : 'Als Nächstes'}</span>
+          <span className="tb-next-up-label">{secret ? 'NÄCHSTER FIXPUNKT' : 'Nächster Fixpunkt'}</span>
           <span className="tb-next-up-time">{nextItem.time}</span>
           <span className="tb-next-up-title">{nextItem.title}</span>
         </div>
       )}
+
+      <div className="tb-tiles">
+        <WeatherBriefingTile label={labels.weather} brief={day.weatherBrief} live={liveWeather} code={liveWeather?.code} />
+        <BriefingTile Icon={Shirt} label={labels.dresscode} text={day.dresscode} />
+        <BriefingTile Icon={Map} label={labels.logistics} text={day.logistics} />
+        <BriefingTile Icon={Utensils} label={labels.food} text={day.foodNote} />
+        <BriefingTile Icon={ShieldCheck} label={labels.risk} text={day.riskLevel} accent="risk" />
+        <BriefingTile Icon={Beer} label={labels.thirst} text={day.thirstLevel} accent="thirst" />
+      </div>
+
+      {day.conciergeNote && (
+        <div className="tb-concierge">
+          <span className="tb-concierge-label">{labels.concierge}</span>
+          <p className="tb-concierge-text">{day.conciergeNote}</p>
+        </div>
+      )}
+
+      <h4 className="tb-section-h">{secret ? 'Einsatzverlauf' : 'Tagesprogramm'}</h4>
       <ol className="tb-timeline">
         {day.items.map((item, idx) => {
           const Icon = iconForItem(item.type)
@@ -2324,6 +2446,13 @@ function FocusDayCard({ day, now, secret }) {
           )
         })}
       </ol>
+
+      {day.leaderOrder && (
+        <p className="tb-day-hint">
+          <ShieldCheck size={14} aria-hidden="true" /> {labels.order}: {day.leaderOrder}
+        </p>
+      )}
+
       <button type="button" className="tb-copy-btn" onClick={handleCopyBriefing}>
         <Copy size={14} aria-hidden="true" /> {secret ? 'Befehl kopieren' : 'Tagesbriefing kopieren'}
       </button>

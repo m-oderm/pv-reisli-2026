@@ -80,59 +80,26 @@ const TRIP_DAYS = [
     intro:
       'Das Ziel ist entsiegelt. Die Mannschaft ist angekommen und Kapitel 1 beginnt offiziell.',
     dayHint: 'PV-Polo bleibt Pflicht. Wandersachen bleiben weiterhin zu Hause.',
+    weatherBrief:
+      'Ankunftstag mit wechselhafter Lage. Leichte Jacke griffbereit halten, Sonnenbrille nicht zu tief vergraben.',
+    dresscode:
+      'PV-Polo ist Pflicht. Für den Abend darf das Outfit gesellschaftsfähig eskalieren.',
+    logistics:
+      'Nach der Ankunft folgt Sammlung der Mannschaft, Mittagessen, Check-in und taktische Erholung.',
+    foodNote:
+      'Mittags leicht starten, abends wird mit Pizza solides Fundament gelegt.',
+    conciergeNote:
+      'Die erste Etappe entscheidet über Haltung, Tempo und Gruppenmoral.',
+    riskLevel: 'Mittel bis erhöht. Hauptgefahr: zu frühe Selbstüberschätzung.',
+    thirstLevel: 'Stabil, mit klarer Tendenz nach oben.',
+    leaderOrder: 'Pünktlich bleiben, PV-Polo tragen, keine Wanderschuhe diskutieren.',
     items: [
-      {
-        time: '12:16',
-        title: 'Ankunft',
-        subtitle: 'Erste Lagebeurteilung und Sammlung der Mannschaft',
-        type: 'travel',
-        location: 'Torino Porta Nuova'
-      },
-      {
-        time: '13:00',
-        title: 'Mittagessen',
-        subtitle: 'Mezzaluna, 5 Personen',
-        type: 'food',
-        location: 'Mezzaluna',
-        link: 'https://maps.app.goo.gl/6TkdXYfZRTEhEBFL6'
-      },
-      {
-        time: '15:00',
-        title: 'Unterkunft beziehen',
-        subtitle: 'Check-in und kurze taktische Erholung',
-        type: 'lodging',
-        location: 'Via Carlo Boucheron 14',
-        link: 'https://maps.app.goo.gl/ffPUXF2uw6WgBh9E7'
-      },
-      {
-        time: '19:30',
-        title: 'Abendessen',
-        subtitle: 'Da Zero, 5 Personen',
-        type: 'food',
-        location: 'Da Zero',
-        link: 'https://maps.app.goo.gl/VzB4sK6PyQNUaZJ69'
-      },
-      {
-        time: 'später',
-        title: 'Ausgang',
-        subtitle: 'Centralino Club, 2000er Party',
-        type: 'nightlife',
-        location: 'Centralino Club',
-        link: 'https://maps.app.goo.gl/F6JKdsFBiujzwAVS8'
-      }
-    ],
-    whatsappBriefing: [
-      'Tagesbriefing Samstag',
-      '',
-      'Ziel entsiegelt.',
-      '12:16 Ankunft',
-      '13:00 Mezzaluna',
-      '15:00 Check-in',
-      '19:30 Da Zero',
-      'danach Centralino Club',
-      '',
-      'PV-Polo bleibt Pflicht. Wandersachen bleiben zu Hause.'
-    ].join('\n')
+      { time: '12:16', title: 'Ankunft', subtitle: 'Erste Lagebeurteilung und Sammlung der Mannschaft', type: 'travel', location: 'Torino Porta Nuova' },
+      { time: '13:00', title: 'Mittagessen', subtitle: 'Mezzaluna, 5 Personen', type: 'food', location: 'Mezzaluna', link: 'https://maps.app.goo.gl/6TkdXYfZRTEhEBFL6' },
+      { time: '15:00', title: 'Unterkunft beziehen', subtitle: 'Check-in und kurze taktische Erholung', type: 'lodging', location: 'Via Carlo Boucheron 14', link: 'https://maps.app.goo.gl/ffPUXF2uw6WgBh9E7' },
+      { time: '19:30', title: 'Abendessen', subtitle: 'Da Zero, 5 Personen', type: 'food', location: 'Da Zero', link: 'https://maps.app.goo.gl/VzB4sK6PyQNUaZJ69' },
+      { time: 'später', title: 'Ausgang', subtitle: 'Centralino Club, 2000er Party', type: 'nightlife', location: 'Centralino Club', link: 'https://maps.app.goo.gl/F6JKdsFBiujzwAVS8' }
+    ]
   },
   {
     id: 'sunday',
@@ -144,49 +111,22 @@ const TRIP_DAYS = [
     intro:
       'Nach der ersten Nacht folgt die kontrollierte Wiederherstellung der Einsatzfähigkeit. Frühstück ist kein Vorschlag, sondern Schadensbegrenzung.',
     dayHint: 'Wasser ist keine Schwäche. Es ist ein taktisches Hilfsmittel.',
+    weatherBrief:
+      'Nach der ersten Nacht gilt: Frische Luft hilft. Sonnenbrille ist sowohl Wetter- als auch Zustandsschutz.',
+    dresscode:
+      'Entspannt, aber stadttauglich. Für die Stadiontour bitte einsatzfähig erscheinen.',
+    logistics: 'Brunch, danach rechtzeitig Richtung Stadion. Genügend Puffer einplanen.',
+    foodNote: 'Brunch ist heute Schadensbegrenzung. Abendessen bringt Klassiker und Ordnung zurück.',
+    conciergeNote: 'Wasser ist keine Schwäche. Es ist ein taktisches Hilfsmittel.',
+    riskLevel: 'Mittel. Hauptgefahr: Müdigkeit mit falschem Selbstvertrauen.',
+    thirstLevel: 'Kontrolliert. Eskalation nur nach Lagebeurteilung.',
+    leaderOrder: 'Um 10:30 erscheinen. Wer frühstückt, denkt an die Gruppe.',
     items: [
-      {
-        time: '10:30',
-        title: 'Brunch',
-        subtitle: 'The Mix Food & Juice, 5 Personen',
-        type: 'food',
-        location: 'The Mix Food & Juice',
-        link: 'https://maps.app.goo.gl/4T7PSSoworAdeDEz7'
-      },
-      {
-        time: '14:00',
-        title: 'Museum & Stadiontour',
-        subtitle: 'Juventus Museum und Stadiontour',
-        type: 'activity',
-        location: 'Juventus Museum',
-        link: 'https://maps.app.goo.gl/b4FCNQWjvWb3k4Ad8'
-      },
-      {
-        time: '19:30',
-        title: 'Abendessen',
-        subtitle: 'Porto di Savona, 5 Personen',
-        type: 'food',
-        location: 'Porto di Savona',
-        link: 'https://maps.app.goo.gl/uqCpKE2UcJ2eUpxH6'
-      },
-      {
-        time: 'danach',
-        title: 'Bar',
-        subtitle: 'Gemütlich in eine Bar, Details vor Ort',
-        type: 'nightlife',
-        location: 'TBD'
-      }
-    ],
-    whatsappBriefing: [
-      'Tagesbriefing Sonntag',
-      '',
-      '10:30 The Mix Food & Juice',
-      '14:00 Juventus Museum und Stadiontour',
-      '19:30 Porto di Savona',
-      'danach gemütlich Bar',
-      '',
-      'Pegelspitze Reisen empfiehlt: Wasser nicht komplett ignorieren.'
-    ].join('\n')
+      { time: '10:30', title: 'Brunch', subtitle: 'The Mix Food & Juice, 5 Personen', type: 'food', location: 'The Mix Food & Juice', link: 'https://maps.app.goo.gl/4T7PSSoworAdeDEz7' },
+      { time: '14:00', title: 'Museum & Stadiontour', subtitle: 'Juventus Museum und Stadiontour', type: 'activity', location: 'Juventus Museum', link: 'https://maps.app.goo.gl/b4FCNQWjvWb3k4Ad8' },
+      { time: '19:30', title: 'Abendessen', subtitle: 'Porto di Savona, 5 Personen', type: 'food', location: 'Porto di Savona', link: 'https://maps.app.goo.gl/uqCpKE2UcJ2eUpxH6' },
+      { time: 'danach', title: 'Bar', subtitle: 'Gemütlich in eine Bar, Details vor Ort', type: 'nightlife', location: 'TBD' }
+    ]
   },
   {
     id: 'monday',
@@ -198,49 +138,25 @@ const TRIP_DAYS = [
     intro:
       'Der Montag verbindet kulturelle Bewegung mit strategischer Freiheit. Am Abend gilt: guter Boden ist kein Luxus, sondern Einsatzvorbereitung.',
     dayHint: 'Vor dem bunten Abend ist guter Boden Pflicht. Beschwerden werden am Dienstag bearbeitet.',
+    weatherBrief:
+      'Stadtmission bei voraussichtlich brauchbarer Lage. Bequeme Schuhe bleiben sinnvoll, Wanderschuhe bleiben verboten.',
+    dresscode: 'Tagsüber bequem, abends mit Hemdpotenzial. Guter Boden verlangt würdigen Auftritt.',
+    logistics: 'Morgenessen und Lunch bleiben flexibel. Fixpunkte sind 10:30, 14:30 und 19:30.',
+    foodNote: 'Frühstück spontan, Mittagessen spontan, Abendessen strategisch. Heute wird Fundament gelegt.',
+    conciergeNote: 'Freie Zeit ist kein Freipass zum Verschwinden. Standortmeldungen werden wohlwollend aufgenommen.',
+    riskLevel: 'Erhöht. Hauptgefahr: bunter Abend mit optimistischer Selbsteinschätzung.',
+    thirstLevel: 'Steigend. Durstplanung ist heute operativ relevant.',
+    leaderOrder: 'Um 10:30 am Treffpunkt sein. Um 19:30 mit Hunger erscheinen.',
     items: [
-      {
-        time: 'Vormittag',
-        title: 'Schnitzeljagd / Stadtführung',
-        subtitle: 'Selbstgeführte Stadtmission',
-        type: 'activity',
-        location: 'Startpunkt gemäss Viator',
-        link: 'https://www.viator.com/de-DE/tours/Turin/Turin-Scavenger-Hunt-and-Walking-Tour/d802-178424P109'
-      },
-      {
-        time: 'Nachmittag',
-        title: 'Zeit zur freien Verfügung',
-        subtitle: 'Rekrut entscheidet selbstverantwortlich',
-        type: 'free',
-        location: 'offen'
-      },
-      {
-        time: '19:30',
-        title: 'Abendessen',
-        subtitle: 'La Taverna Dei Mercanti, 5 Personen',
-        type: 'food',
-        location: 'La Taverna Dei Mercanti',
-        link: 'https://maps.app.goo.gl/5vMxZh6cvdeZTkHq6'
-      },
-      {
-        time: 'danach',
-        title: 'Bunter Abend',
-        subtitle: 'FLORA 1925 und Fat Cocktail Bar',
-        type: 'nightlife',
-        location: 'FLORA 1925 / Fat Cocktail Bar',
-        link: 'https://maps.app.goo.gl/jymFhHaprPChdvZv7'
-      }
-    ],
-    whatsappBriefing: [
-      'Tagesbriefing Montag',
-      '',
-      'Vormittag: Schnitzeljagd / Stadtführung',
-      'Nachmittag: Zeit zur freien Verfügung',
-      '19:30 La Taverna Dei Mercanti',
-      'danach FLORA 1925 und Fat Cocktail Bar',
-      '',
-      'Guter Boden ist heute nicht optional.'
-    ].join('\n')
+      { time: '09:30', title: 'Morgenessen / Kaffee', subtitle: 'Spontan in der Stadt. Wer früher wach ist, handelt eigenverantwortlich.', type: 'food', location: 'spontan' },
+      { time: '10:30', title: 'Treffpunkt Schnitzeljagd', subtitle: 'Mannschaft sammelt sich für die Stadtmission', type: 'meeting', location: 'Startpunkt gemäss Viator', link: 'https://www.viator.com/de-DE/tours/Turin/Turin-Scavenger-Hunt-and-Walking-Tour/d802-178424P109' },
+      { time: 'Vormittag', title: 'Schnitzeljagd / Stadtführung', subtitle: 'Selbstgeführte Stadtmission', type: 'activity', location: 'Startpunkt gemäss Viator', link: 'https://www.viator.com/de-DE/tours/Turin/Turin-Scavenger-Hunt-and-Walking-Tour/d802-178424P109' },
+      { time: '12:45', title: 'Mittagessen', subtitle: 'Spontan in der Stadt. Reiseleitung gibt Lage vor Ort frei.', type: 'food', location: 'spontan' },
+      { time: '14:30', title: 'Treffpunkt / Entscheid freie Verfügung', subtitle: 'Kurzer Sammelpunkt, danach freie Zeit für Rekruten', type: 'meeting', location: 'TBD vor Ort' },
+      { time: 'Nachmittag', title: 'Zeit zur freien Verfügung', subtitle: 'Rekrut entscheidet selbstverantwortlich', type: 'free', location: 'offen' },
+      { time: '19:30', title: 'Abendessen', subtitle: 'La Taverna Dei Mercanti, 5 Personen', type: 'food', location: 'La Taverna Dei Mercanti', link: 'https://maps.app.goo.gl/5vMxZh6cvdeZTkHq6' },
+      { time: 'danach', title: 'Bunter Abend', subtitle: 'FLORA 1925 und Fat Cocktail Bar', type: 'nightlife', location: 'FLORA 1925 / Fat Cocktail Bar', link: 'https://maps.app.goo.gl/jymFhHaprPChdvZv7' }
+    ]
   },
   {
     id: 'tuesday',
@@ -252,49 +168,57 @@ const TRIP_DAYS = [
     intro:
       'Die Mission nähert sich dem Abschluss. Restwürde einsammeln, Gepäck prüfen und pünktlich zum Rückzug antreten.',
     dayHint: 'Gepäck, ID und Restwürde kontrollieren. Rückreise ist Teil der Mission.',
+    weatherBrief:
+      'Letzter Reisetag. Leichte Kleidung, klare Gedanken und vollständiges Gepäck empfohlen.',
+    dresscode: 'Reisetauglich. Stil darf bleiben, Komfort gewinnt.',
+    logistics: 'Check-out, Brunch, Rückreise. Heute zählt Pünktlichkeit mehr als Heldentum.',
+    foodNote: 'Brunch als letzte zivile Stärkung vor dem geordneten Rückzug.',
+    conciergeNote: 'Restwürde einsammeln, Ladekabel suchen, nichts im Zimmer vergessen.',
+    riskLevel: 'Mittel. Hauptgefahr: verlorene Gegenstände und verspätete Erkenntnisse.',
+    thirstLevel: 'Gedämpft, aber traditionsbewusst.',
+    leaderOrder: 'Gepäck prüfen, ID prüfen, pünktlich zum Zug.',
     items: [
-      {
-        time: '10:00',
-        title: 'Check-out',
-        subtitle: 'Unterkunft abgeben',
-        type: 'lodging',
-        location: 'Unterkunft'
-      },
-      {
-        time: '11:00',
-        title: 'Brunch',
-        subtitle: 'Avocuddle Café, 4 Personen',
-        type: 'food',
-        location: 'Avocuddle Café',
-        link: 'https://maps.app.goo.gl/oFs53z93NWZsfLxP9'
-      },
-      {
-        time: '13:50',
-        title: 'Rückreise',
-        subtitle: 'Ab Torino Porta Nuova',
-        type: 'travel',
-        location: 'Bahnhof'
-      },
-      {
-        time: '18:00',
-        title: 'Ankunft',
-        subtitle: 'Zurück in Zug',
-        type: 'travel',
-        location: 'Zug'
-      }
-    ],
-    whatsappBriefing: [
-      'Tagesbriefing Dienstag',
-      '',
-      '10:00 Check-out',
-      '11:00 Avocuddle Café',
-      '13:50 Rückreise',
-      '18:00 Ankunft in Zug',
-      '',
-      'Restwürde einsammeln. Gepäck prüfen. Pünktlich bleiben.'
-    ].join('\n')
+      { time: '10:00', title: 'Check-out', subtitle: 'Unterkunft abgeben', type: 'lodging', location: 'Unterkunft' },
+      { time: '11:00', title: 'Brunch', subtitle: 'Avocuddle Café, 4 Personen', type: 'food', location: 'Avocuddle Café', link: 'https://maps.app.goo.gl/oFs53z93NWZsfLxP9' },
+      { time: '13:50', title: 'Rückreise', subtitle: 'Ab Torino Porta Nuova', type: 'travel', location: 'Bahnhof' },
+      { time: '18:00', title: 'Ankunft', subtitle: 'Zurück in Zug', type: 'travel', location: 'Zug' }
+    ]
   }
 ]
+
+const WEEKDAY_DE = {
+  saturday: 'Samstag',
+  sunday: 'Sonntag',
+  monday: 'Montag',
+  tuesday: 'Dienstag'
+}
+
+function buildWhatsappBriefing(day) {
+  const weekday = WEEKDAY_DE[day.id] ?? day.title
+  const programLines = day.items.map((i) => {
+    const place = i.location && i.location !== i.subtitle ? ` (${i.location})` : ''
+    return `${i.time} ${i.title}${place}`
+  })
+  return [
+    `Tagesbriefing ${weekday}`,
+    '',
+    day.motto ? `« ${day.motto} »` : null,
+    '',
+    'Wetterlage:',
+    day.weatherBrief,
+    '',
+    'Programm:',
+    ...programLines,
+    '',
+    `Dresscode: ${day.dresscode}`,
+    `Logistik: ${day.logistics}`,
+    `Kulinarik: ${day.foodNote}`,
+    `Risiko: ${day.riskLevel}`,
+    `Durstlage: ${day.thirstLevel}`,
+    '',
+    `Befehl der Reiseleitung: ${day.leaderOrder}`
+  ].filter((line) => line !== null).join('\n')
+}
 
 export default {
   async fetch(request, env) {
@@ -317,7 +241,7 @@ export default {
           locked: true
         }
       }
-      return { ...day, locked: false }
+      return { ...day, whatsappBriefing: buildWhatsappBriefing(day), locked: false }
     })
 
     const hints = TRAVEL_QUEST_HINTS.map((hint) => {

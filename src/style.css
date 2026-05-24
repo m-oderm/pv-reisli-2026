@@ -2272,6 +2272,175 @@ main { flex: 1; }
   border-radius: 999px;
 }
 
+/* ---------- Briefing-Kacheln im Tagesfokus ---------- */
+
+.tb-focus-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.tb-focus-badge {
+  font-size: 10px;
+  letter-spacing: var(--track-loose);
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(11, 34, 61, 0.08);
+  color: var(--ink-soft);
+  border: 1px solid rgba(11, 34, 61, 0.18);
+}
+.tb-focus-badge.is-today {
+  background: rgba(184, 138, 59, 0.18);
+  color: var(--gold-deep);
+  border-color: rgba(184, 138, 59, 0.5);
+}
+.tb-focus-badge.is-past {
+  background: rgba(22, 61, 52, 0.12);
+  color: var(--green);
+  border-color: rgba(22, 61, 52, 0.32);
+}
+
+.tb-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+@media (max-width: 620px) {
+  .tb-tiles { grid-template-columns: 1fr; }
+}
+
+.tb-tile {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(184, 138, 59, 0.28);
+  background: rgba(184, 138, 59, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tb-tile-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tb-tile-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(184, 138, 59, 0.16);
+  color: var(--gold-deep);
+}
+.tb-tile-label {
+  font-size: 10px;
+  letter-spacing: var(--track-loose);
+  text-transform: uppercase;
+  color: var(--gold-deep);
+  font-weight: 700;
+}
+.tb-tile-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.tb-tile-risk {
+  background: rgba(201, 111, 43, 0.06);
+  border-color: rgba(201, 111, 43, 0.3);
+}
+.tb-tile-risk .tb-tile-icon {
+  background: rgba(201, 111, 43, 0.16);
+  color: var(--orange);
+}
+.tb-tile-risk .tb-tile-label { color: var(--orange); }
+
+.tb-tile-thirst {
+  background: rgba(22, 61, 52, 0.05);
+  border-color: rgba(22, 61, 52, 0.28);
+}
+.tb-tile-thirst .tb-tile-icon {
+  background: rgba(22, 61, 52, 0.15);
+  color: var(--green);
+}
+.tb-tile-thirst .tb-tile-label { color: var(--green); }
+
+.tb-tile-weather {
+  background: rgba(11, 34, 61, 0.04);
+  border-color: rgba(11, 34, 61, 0.18);
+}
+.tb-tile-weather .tb-tile-icon {
+  background: rgba(11, 34, 61, 0.1);
+  color: var(--navy);
+}
+.tb-tile-weather .tb-tile-label { color: var(--navy); }
+.tb-tile-weather-live {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.tb-tile-weather-max {
+  font-family: var(--serif);
+  font-weight: 800;
+  font-size: 22px;
+  color: var(--navy);
+}
+.tb-tile-weather-min {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+.tb-tile-weather-pop {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 13px;
+  color: var(--orange);
+  font-weight: 600;
+}
+
+.tb-concierge {
+  margin: 14px 0 18px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: rgba(184, 138, 59, 0.08);
+  border-left: 3px solid var(--gold);
+}
+.tb-concierge-label {
+  font-size: 10px;
+  letter-spacing: var(--track-loose);
+  text-transform: uppercase;
+  color: var(--gold-deep);
+  font-weight: 700;
+  display: block;
+  margin-bottom: 4px;
+}
+.tb-concierge-text {
+  margin: 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.tb-section-h {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 18px;
+  margin: 18px 0 12px;
+  color: var(--navy);
+}
+
 /* ---------- Secret Toast (immer aktiv, im Geheimmodus mit Phosphor-Glow) ---------- */
 
 .secret-toast {
@@ -2779,6 +2948,52 @@ main { flex: 1; }
   background: rgba(74, 222, 128, 0.18);
   color: #4ade80;
 }
+
+/* Briefing-Kacheln im Geheimmodus */
+.app.secret-mode .tb-focus-badge {
+  background: rgba(74, 222, 128, 0.12);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.4);
+}
+.app.secret-mode .tb-focus-badge.is-today {
+  background: rgba(250, 204, 21, 0.18);
+  color: #facc15;
+  border-color: rgba(250, 204, 21, 0.6);
+}
+.app.secret-mode .tb-focus-badge.is-past {
+  background: rgba(74, 222, 128, 0.08);
+  color: #86efac;
+  border-color: rgba(74, 222, 128, 0.32);
+}
+
+.app.secret-mode .tb-tile {
+  background: rgba(74, 222, 128, 0.05);
+  border-color: rgba(74, 222, 128, 0.28);
+}
+.app.secret-mode .tb-tile-icon {
+  background: rgba(74, 222, 128, 0.18);
+  color: #facc15;
+}
+.app.secret-mode .tb-tile-label { color: #facc15; }
+.app.secret-mode .tb-tile-text { color: #d1fae5; }
+.app.secret-mode .tb-tile-risk,
+.app.secret-mode .tb-tile-thirst,
+.app.secret-mode .tb-tile-weather {
+  background: rgba(74, 222, 128, 0.05);
+  border-color: rgba(74, 222, 128, 0.28);
+}
+.app.secret-mode .tb-tile-weather-max { color: #d1fae5; }
+.app.secret-mode .tb-tile-weather-min { color: #86efac; }
+.app.secret-mode .tb-tile-weather-pop { color: #facc15; }
+
+.app.secret-mode .tb-concierge {
+  background: rgba(250, 204, 21, 0.08);
+  border-left-color: #facc15;
+}
+.app.secret-mode .tb-concierge-label { color: #facc15; }
+.app.secret-mode .tb-concierge-text { color: #d1fae5; }
+
+.app.secret-mode .tb-section-h { color: #d1fae5; }
 
 /* Toast im Geheimmodus etwas kraeftiger */
 .app.secret-mode .secret-toast {
