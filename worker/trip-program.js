@@ -149,8 +149,8 @@ const TRIP_DAYS = [
     leaderOrder: 'Um 10:30 am Treffpunkt sein. Um 19:30 mit Hunger erscheinen.',
     items: [
       { time: '09:30', title: 'Morgenessen / Kaffee', subtitle: 'Spontan in der Stadt. Wer früher wach ist, handelt eigenverantwortlich.', type: 'food', location: 'spontan' },
-      { time: '10:30', title: 'Treffpunkt Schnitzeljagd', subtitle: 'Mannschaft sammelt sich für die Stadtmission', type: 'meeting', location: 'Startpunkt gemäss Viator', link: 'https://www.viator.com/de-DE/tours/Turin/Turin-Scavenger-Hunt-and-Walking-Tour/d802-178424P109' },
-      { time: 'Vormittag', title: 'Schnitzeljagd / Stadtführung', subtitle: 'Selbstgeführte Stadtmission', type: 'activity', location: 'Startpunkt gemäss Viator', link: 'https://www.viator.com/de-DE/tours/Turin/Turin-Scavenger-Hunt-and-Walking-Tour/d802-178424P109' },
+      { time: '10:30', title: 'Treffpunkt Schnitzeljagd', subtitle: 'Mannschaft sammelt sich für die Stadtmission', type: 'meeting', location: 'Startpunkt gemäss Viator', link: 'https://maps.app.goo.gl/e7PgWjwJpnTVsgRX9' },
+      { time: 'Vormittag', title: 'Schnitzeljagd / Stadtführung', subtitle: 'Selbstgeführte Stadtmission', type: 'activity', location: 'Startpunkt gemäss Viator', link: 'https://maps.app.goo.gl/e7PgWjwJpnTVsgRX9' },
       { time: '12:45', title: 'Mittagessen', subtitle: 'Spontan in der Stadt. Reiseleitung gibt Lage vor Ort frei.', type: 'food', location: 'spontan' },
       { time: '14:30', title: 'Treffpunkt / Entscheid freie Verfügung', subtitle: 'Kurzer Sammelpunkt, danach freie Zeit für Rekruten', type: 'meeting', location: 'TBD vor Ort' },
       { time: 'Nachmittag', title: 'Zeit zur freien Verfügung', subtitle: 'Rekrut entscheidet selbstverantwortlich', type: 'free', location: 'offen' },
@@ -180,7 +180,7 @@ const TRIP_DAYS = [
     items: [
       { time: '10:00', title: 'Check-out', subtitle: 'Unterkunft abgeben', type: 'lodging', location: 'Unterkunft' },
       { time: '11:00', title: 'Brunch', subtitle: 'Avocuddle Café, 4 Personen', type: 'food', location: 'Avocuddle Café', link: 'https://maps.app.goo.gl/oFs53z93NWZsfLxP9' },
-      { time: '13:50', title: 'Rückreise', subtitle: 'Ab Torino Porta Nuova', type: 'travel', location: 'Bahnhof' },
+      { time: '13:50', title: 'Rückreise', subtitle: 'Ab Torino Porta Nuova', type: 'travel', location: 'Bahnhof', link: 'https://www.sbb.ch/de?stops=Torino+Porta+Nuova_I8300219~Zug_I8502204&day=2026-06-02&time=12_36&moment=dep&trip=2' },
       { time: '18:00', title: 'Ankunft', subtitle: 'Zurück in Zug', type: 'travel', location: 'Zug' }
     ]
   }
