@@ -304,7 +304,7 @@ export default {
       return jsonResponse({ error: 'method_not_allowed' }, 405)
     }
 
-    const now = resolveNow(url, env)
+    const now = resolveNow(url, env, request)
 
     const days = TRIP_DAYS.map((day) => {
       const unlocked = Date.parse(day.unlockAt) <= now
@@ -346,8 +346,18 @@ export default {
   }
 }
 
-function resolveNow(url, env) {
-  if (env && env.ALLOW_TIME_OVERRIDE === 'true') {
+// Production-Hosts: hier liegt die echte Geheimhaltung, ?now= wird ignoriert.
+// Alle anderen Hosts (Cloudflare Preview-Branches, lokales Wrangler) duerfen
+// den Override nutzen.
+const PRODUCTION_HOSTS = new Set([
+  'pv-reisli-2026.marc-odermatt-8c1.workers.dev'
+])
+
+function resolveNow(url, env, request) {
+  const host = (request?.headers?.get?.('host') || '').toLowerCase()
+  const isPreview = !PRODUCTION_HOSTS.has(host)
+  const envOverride = env && env.ALLOW_TIME_OVERRIDE === 'true'
+  if (isPreview || envOverride) {
     const override = url.searchParams.get('now')
     if (override) {
       const parsed = Date.parse(override)
