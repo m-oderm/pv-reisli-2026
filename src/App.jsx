@@ -2232,7 +2232,6 @@ function Tagesbriefing({ tripStarted, now }) {
     const focus = pinned ?? defaultFocus
     const lockedRest = (data.days ?? []).filter((d) => d.locked)
     // Reiselage nur waehrend der Anreise (Sa 00:00 bis Ankunft 12:20).
-    const showStatus = now >= SATURDAY_MIDNIGHT_MS && now < SATURDAY_UNLOCK_MS
     content = (
       <>
         {tabbableDays.length > 1 && (
@@ -2244,7 +2243,6 @@ function Tagesbriefing({ tripStarted, now }) {
             secret={secret}
           />
         )}
-        {showStatus && travelStatus && <TravelStatusCard status={travelStatus} secret={secret} />}
         {focus && <FocusDayCard day={focus} now={now} secret={secret} weather={weather} />}
         {lockedRest.length > 0 && (
           <div className="tb-other-days">
@@ -2325,6 +2323,8 @@ function TravelQuestCard({ quest, travelStatus, now, secret }) {
       <p className="tb-motto">«{quest.motto}»</p>
       <p className="tb-intro">{quest.intro}</p>
       <p className="tb-hint-meta muted">{quest.hint}</p>
+
+      {travelStatus && <TravelStatusCard status={travelStatus} secret={secret} />}
 
       <ol className="tb-hint-list">
         {hints.map((h) => (
@@ -2636,6 +2636,7 @@ export default function App() {
   const showToast = useCallback((message) => setSecretToast(message), [])
 
   const tripStarted = now >= TRAVEL_QUEST_START_MS
+  const showTagesbriefing = now >= SATURDAY_MIDNIGHT_MS
 
   return (
     <MotionConfig reducedMotion="user">
@@ -2646,7 +2647,7 @@ export default function App() {
             <main>
               <Hero />
               <div className="container">
-                <Tagesbriefing tripStarted={tripStarted} now={now} />
+                {showTagesbriefing && <Tagesbriefing tripStarted={tripStarted} now={now} />}
                 <Eckdaten />
                 {!tripStarted && <CountdownSection />}
                 <Reiseleitung />
