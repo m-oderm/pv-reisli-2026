@@ -2632,6 +2632,113 @@ main { flex: 1; }
   .tb-footer .tb-copy-btn { width: 100%; justify-content: center; }
 }
 
+/* ---------- Abschied (nach Reise-Ende) ---------- */
+
+.abschied-section {
+  position: relative;
+  text-align: center;
+}
+.abschied-stamp {
+  position: absolute;
+  top: -22px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 2px solid var(--orange);
+  border-radius: 6px;
+  color: var(--orange);
+  background: rgba(201, 111, 43, 0.08);
+  font-family: var(--serif);
+  font-weight: 800;
+  font-style: italic;
+  font-size: 14px;
+  letter-spacing: var(--track-loose);
+  text-transform: uppercase;
+  transform: rotate(-4deg);
+  box-shadow:
+    0 0 0 1px rgba(201, 111, 43, 0.4),
+    0 8px 18px -8px rgba(201, 111, 43, 0.4);
+}
+.abschied-card {
+  text-align: left;
+}
+.abschied-farewell {
+  font-family: var(--serif);
+  font-size: clamp(17px, 2.4vw, 21px);
+  line-height: 1.55;
+  margin: 0 0 22px;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.abschied-facts {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 22px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 620px) {
+  .abschied-facts { grid-template-columns: 1fr; }
+}
+.abschied-fact {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(184, 138, 59, 0.08);
+  border: 1px solid rgba(184, 138, 59, 0.28);
+}
+.abschied-fact-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: rgba(184, 138, 59, 0.18);
+  color: var(--gold-deep);
+}
+.abschied-fact-label {
+  font-size: 11px;
+  letter-spacing: var(--track-loose);
+  text-transform: uppercase;
+  color: var(--gold-deep);
+  font-weight: 700;
+}
+.abschied-fact-value {
+  font-family: var(--serif);
+  font-weight: 700;
+  color: var(--navy);
+  text-align: right;
+}
+.abschied-ps {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(184, 138, 59, 0.12);
+  border-radius: 12px;
+  margin: 0 0 18px;
+  font-size: 14px;
+  color: var(--gold-deep);
+  font-weight: 600;
+  line-height: 1.5;
+}
+.abschied-ps svg { flex: 0 0 auto; margin-top: 2px; }
+.abschied-sign {
+  margin: 0;
+  font-family: var(--serif);
+  font-style: italic;
+  text-align: right;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
 /* ---------- Secret Toast (immer aktiv, im Geheimmodus mit Phosphor-Glow) ---------- */
 
 .secret-toast {
@@ -3151,6 +3258,31 @@ main { flex: 1; }
   color: #facc15;
 }
 .app.secret-mode .anreise-route-delay { color: #facc15; }
+
+.app.secret-mode .abschied-stamp {
+  border-color: #facc15;
+  color: #facc15;
+  background: rgba(250, 204, 21, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(250, 204, 21, 0.5),
+    0 8px 18px -8px rgba(250, 204, 21, 0.4);
+}
+.app.secret-mode .abschied-farewell { color: #d1fae5; }
+.app.secret-mode .abschied-fact {
+  background: rgba(74, 222, 128, 0.06);
+  border-color: rgba(74, 222, 128, 0.28);
+}
+.app.secret-mode .abschied-fact-icon {
+  background: rgba(74, 222, 128, 0.18);
+  color: #facc15;
+}
+.app.secret-mode .abschied-fact-label { color: #facc15; }
+.app.secret-mode .abschied-fact-value { color: #d1fae5; }
+.app.secret-mode .abschied-ps {
+  background: rgba(250, 204, 21, 0.12);
+  color: #facc15;
+}
+.app.secret-mode .abschied-sign { color: #86efac; }
 .app.secret-mode .tb-other-day {
   background: rgba(74, 222, 128, 0.05);
   border-color: rgba(74, 222, 128, 0.25);
@@ -3406,6 +3538,26 @@ main { flex: 1; }
     color: var(--gold-soft);
   }
   .anreise-route-delay { color: var(--gold-soft); }
+
+  .abschied-farewell,
+  .abschied-fact-value { color: var(--ink); }
+  .abschied-stamp {
+    border-color: var(--gold-soft);
+    color: var(--gold-soft);
+    background: rgba(216, 176, 106, 0.14);
+    box-shadow:
+      0 0 0 1px rgba(216, 176, 106, 0.5),
+      0 8px 18px -8px rgba(216, 176, 106, 0.45);
+  }
+  .abschied-fact {
+    background: rgba(247, 236, 209, 0.04);
+    border-color: rgba(247, 236, 209, 0.14);
+  }
+  .abschied-ps {
+    background: rgba(216, 176, 106, 0.18);
+    color: var(--gold-soft);
+  }
+  .abschied-sign { color: var(--ink-soft); }
   .tb-tile-weather {
     background: rgba(247, 236, 209, 0.04);
     border-color: rgba(247, 236, 209, 0.18);

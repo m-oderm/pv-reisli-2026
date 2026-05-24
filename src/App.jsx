@@ -2719,6 +2719,52 @@ function ClosedOrPendingDayCard({ day, now, secret }) {
   )
 }
 
+function Abschied() {
+  const secret = useSecretMode()
+  const facts = [
+    { Icon: CalendarDays, label: secret ? 'Operationsdauer' : 'Reisedauer', value: '4 Tage' },
+    { Icon: Users, label: secret ? 'Eingesetzte Kraefte' : 'Mannschaft', value: '6 Mann' },
+    { Icon: Footprints, label: 'Wanderschuhe', value: '0 Paare verwendet' },
+    { Icon: Beer, label: 'Durstplanung', value: 'plangemaess vollstreckt' },
+    { Icon: Shirt, label: 'PV-Polo-Quote', value: 'erfreulich hoch' },
+    { Icon: ShieldCheck, label: 'Restwuerde', value: 'weitgehend sichergestellt' }
+  ]
+  const kicker = secret ? 'MISSION ARCHIVIERT' : 'Reisebericht abgegeben'
+  const title = secret ? 'Akte geschlossen' : 'Das war PV-Reisli 2026'
+  const farewell = secret
+    ? 'Operation erfolgreich beendet. Mannschaft entlassen. Akte versiegelt. Pegelspitze Reisen bleibt im Untergrund, bis das naechste Tarnmanoever ruft.'
+    : 'Vier Tage Mission, sechs Mann, eine ordentliche Eskalation und erstaunlich wenig Schaden. Pegelspitze Reisen verbeugt sich, raeumt die Aktendeckel auf und plant heimlich die naechste Operation.'
+  const ps = secret
+    ? 'Naechster Einsatz: vertraulich. Anweisungen folgen ueber die ueblichen Kanaele.'
+    : 'Naechster Einsatz: noch klassifiziert. Wer Hinweise hat, meldet sich bei der Reiseleitung.'
+
+  return (
+    <section id="abschied" className="section abschied-section">
+      <div className="abschied-stamp" aria-hidden="true">
+        <ShieldCheck size={16} />
+        <span>{secret ? 'DOSSIER VERSIEGELT' : 'AKTE GESCHLOSSEN'}</span>
+      </div>
+      <SectionTitle icon={FileText} kicker={kicker} title={title} />
+      <Card className="card-cream abschied-card">
+        <p className="abschied-farewell">{farewell}</p>
+        <ul className="abschied-facts">
+          {facts.map((f, i) => (
+            <li key={i} className="abschied-fact">
+              <span className="abschied-fact-icon" aria-hidden="true"><f.Icon size={16} /></span>
+              <span className="abschied-fact-label">{f.label}</span>
+              <span className="abschied-fact-value">{f.value}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="abschied-ps">
+          <Sparkles size={14} aria-hidden="true" /> {ps}
+        </p>
+        <p className="abschied-sign">— Reiseleitung Hakan &amp; Franz</p>
+      </Card>
+    </section>
+  )
+}
+
 function Footer() {
   return (
     <footer className="footer">
@@ -2805,26 +2851,34 @@ export default function App() {
   const showToast = useCallback((message) => setSecretToast(message), [])
 
   const tripStarted = now >= TRAVEL_QUEST_START_MS
-  const showTagesbriefing = now >= SATURDAY_MIDNIGHT_MS
+  const tripEnded = now >= TRIP_END_MS
+  const showTagesbriefing = now >= SATURDAY_MIDNIGHT_MS && !tripEnded
+  const navItems = tripEnded ? [] : getNavItems(tripStarted)
 
   return (
     <MotionConfig reducedMotion="user">
       <SecretModeContext.Provider value={secretMode}>
         <ToastContext.Provider value={showToast}>
-          <div className={`app${secretMode ? ' secret-mode' : ''}`}>
-            <Nav onToggleSecret={toggleSecretMode} navItems={getNavItems(tripStarted)} />
+          <div className={`app${secretMode ? ' secret-mode' : ''}${tripEnded ? ' trip-ended' : ''}`}>
+            <Nav onToggleSecret={toggleSecretMode} navItems={navItems} />
             <main>
               <Hero />
               <div className="container">
-                {showTagesbriefing && <Tagesbriefing tripStarted={tripStarted} now={now} />}
-                <Eckdaten />
-                {!tripStarted && <CountdownSection />}
-                <Reiseleitung />
-                <Wetter />
-                {!tripStarted && <Dresscode />}
-                {!tripStarted && <PackingList />}
-                {!tripStarted && <OutdoorAccordion />}
-                {!tripStarted && <Wichtig />}
+                {tripEnded ? (
+                  <Abschied />
+                ) : (
+                  <>
+                    {showTagesbriefing && <Tagesbriefing tripStarted={tripStarted} now={now} />}
+                    <Eckdaten />
+                    {!tripStarted && <CountdownSection />}
+                    <Reiseleitung />
+                    <Wetter />
+                    {!tripStarted && <Dresscode />}
+                    {!tripStarted && <PackingList />}
+                    {!tripStarted && <OutdoorAccordion />}
+                    {!tripStarted && <Wichtig />}
+                  </>
+                )}
               </div>
             </main>
             <Footer />
