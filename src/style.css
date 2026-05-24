@@ -3102,11 +3102,30 @@ main { flex: 1; }
 
   /* Tagesbriefing im dunklen Modus */
   .tb-focus-title,
+  .tb-quest-title,
   .tb-section-h,
   .tb-next-up-time,
   .tb-tile-weather-max,
-  .tb-tile-weather .tb-tile-label {
+  .tb-tile-weather .tb-tile-label,
+  .tb-tl-time,
+  .tb-tl-title,
+  .tb-hint-title,
+  .tb-before-title,
+  .tb-locked-title,
+  .tb-other-title {
     color: var(--ink);
+  }
+  .tb-tl-sub { color: var(--ink-soft); }
+  .tb-tl-icon {
+    background: rgba(184, 138, 59, 0.2);
+    color: var(--gold-soft);
+  }
+  .tb-tile-thirst .tb-tile-label {
+    color: #b6d8c8;
+  }
+  .tb-tile-thirst .tb-tile-icon {
+    background: rgba(111, 179, 156, 0.2);
+    color: #b6d8c8;
   }
   .tb-tile-weather {
     background: rgba(247, 236, 209, 0.04);
