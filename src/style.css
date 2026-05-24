@@ -3127,6 +3127,24 @@ main { flex: 1; }
     background: rgba(111, 179, 156, 0.2);
     color: #b6d8c8;
   }
+  .travel-status-card {
+    background: rgba(247, 236, 209, 0.05);
+    border-color: rgba(247, 236, 209, 0.15);
+  }
+  .travel-status-label { color: var(--gold-soft); }
+  .travel-status-msg { color: var(--ink); }
+  .travel-status-pill.is-ok {
+    background: rgba(111, 179, 156, 0.25);
+    color: #c6e6d6;
+  }
+  .travel-status-pill.is-warn {
+    background: rgba(216, 176, 106, 0.22);
+    color: var(--gold-soft);
+  }
+  .travel-status-pill.is-mute {
+    background: rgba(247, 236, 209, 0.1);
+    color: var(--ink-soft);
+  }
   .tb-tile-weather {
     background: rgba(247, 236, 209, 0.04);
     border-color: rgba(247, 236, 209, 0.18);
