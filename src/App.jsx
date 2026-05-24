@@ -2220,14 +2220,18 @@ function Tagesbriefing({ tripStarted, now }) {
   } else {
     const unlocked = (data.days ?? []).filter((d) => !d.locked)
     const defaultFocus = getCurrentFocusDay(data.days, now)
-    const pinned = pinnedDayId ? unlocked.find((d) => d.id === pinnedDayId) : null
+    const today = isoDateInZurich(now)
+    // Tabs nur fuer heute und zukuenftige (= noch nicht abgeschlossene) freigegebene Tage.
+    // Abgeschlossene Tage werden weggeblendet, niemand soll dorthin zurueckwechseln muessen.
+    const tabbableDays = unlocked.filter((d) => d.date >= today)
+    const pinned = pinnedDayId ? tabbableDays.find((d) => d.id === pinnedDayId) : null
     const focus = pinned ?? defaultFocus
     const lockedRest = (data.days ?? []).filter((d) => d.locked)
     content = (
       <>
-        {unlocked.length > 1 && (
+        {tabbableDays.length > 1 && (
           <DayTabs
-            days={unlocked}
+            days={tabbableDays}
             selectedId={focus?.id}
             onSelect={(id) => setPinnedDayId(id === defaultFocus?.id ? null : id)}
             now={now}
