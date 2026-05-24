@@ -2274,6 +2274,70 @@ main { flex: 1; }
 
 /* ---------- Briefing-Kacheln im Tagesfokus ---------- */
 
+.tb-day-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px;
+}
+.tb-day-tabs::-webkit-scrollbar { display: none; }
+.tb-day-tab {
+  flex: 1 1 auto;
+  min-width: 130px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(184, 138, 59, 0.06);
+  border: 1px solid rgba(184, 138, 59, 0.28);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.18s var(--ease-smooth), border-color 0.18s var(--ease-smooth), transform 0.18s var(--ease-out-soft);
+  scroll-snap-align: start;
+}
+.tb-day-tab:active { transform: scale(0.98); }
+@media (hover: hover) and (pointer: fine) {
+  .tb-day-tab:hover {
+    background: rgba(184, 138, 59, 0.14);
+    border-color: rgba(184, 138, 59, 0.45);
+  }
+}
+.tb-day-tab.is-active {
+  background: var(--navy);
+  border-color: var(--navy);
+}
+.tb-day-tab.is-active .tb-day-tab-label { color: var(--cream); }
+.tb-day-tab.is-active .tb-day-tab-chapter { color: var(--gold-soft); }
+.tb-day-tab.is-today:not(.is-active) {
+  border-color: rgba(184, 138, 59, 0.55);
+  background: rgba(184, 138, 59, 0.12);
+}
+.tb-day-tab-label {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--navy);
+  line-height: 1.15;
+}
+.tb-day-tab-chapter {
+  font-size: 10px;
+  letter-spacing: var(--track-loose);
+  text-transform: uppercase;
+  color: var(--gold-deep);
+  font-weight: 700;
+}
+@media (max-width: 620px) {
+  .tb-day-tab {
+    min-width: 110px;
+    padding: 8px 12px;
+  }
+  .tb-day-tab-label { font-size: 14px; }
+}
+
 .tb-focus-head-row {
   display: flex;
   align-items: center;
@@ -3008,6 +3072,23 @@ main { flex: 1; }
 
 .app.secret-mode .tb-section-h { color: #d1fae5; }
 
+.app.secret-mode .tb-day-tab {
+  background: rgba(74, 222, 128, 0.05);
+  border-color: rgba(74, 222, 128, 0.3);
+}
+.app.secret-mode .tb-day-tab-label { color: #d1fae5; }
+.app.secret-mode .tb-day-tab-chapter { color: #facc15; }
+.app.secret-mode .tb-day-tab.is-active {
+  background: #facc15;
+  border-color: #facc15;
+}
+.app.secret-mode .tb-day-tab.is-active .tb-day-tab-label { color: #050a05; }
+.app.secret-mode .tb-day-tab.is-active .tb-day-tab-chapter { color: rgba(5, 10, 5, 0.7); }
+.app.secret-mode .tb-day-tab.is-today:not(.is-active) {
+  background: rgba(250, 204, 21, 0.12);
+  border-color: rgba(250, 204, 21, 0.55);
+}
+
 /* Toast im Geheimmodus etwas kraeftiger */
 .app.secret-mode .secret-toast {
   background: rgba(5, 10, 5, 0.96);
@@ -3201,6 +3282,23 @@ main { flex: 1; }
     border-color: rgba(111, 179, 156, 0.4);
   }
   .tb-concierge-text { color: var(--ink); }
+
+  .tb-day-tab {
+    background: rgba(247, 236, 209, 0.04);
+    border-color: rgba(247, 236, 209, 0.16);
+  }
+  .tb-day-tab-label { color: var(--ink); }
+  .tb-day-tab-chapter { color: var(--gold-soft); }
+  .tb-day-tab.is-active {
+    background: var(--gold-soft);
+    border-color: var(--gold-soft);
+  }
+  .tb-day-tab.is-active .tb-day-tab-label { color: #0b1626; }
+  .tb-day-tab.is-active .tb-day-tab-chapter { color: rgba(11, 22, 38, 0.7); }
+  .tb-day-tab.is-today:not(.is-active) {
+    background: rgba(216, 176, 106, 0.16);
+    border-color: rgba(216, 176, 106, 0.5);
+  }
 
   /* Wetter-Detail-Modal im dunklen Modus */
   .day-modal {

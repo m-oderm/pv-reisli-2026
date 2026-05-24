@@ -2154,11 +2154,52 @@ function Wichtig() {
   )
 }
 
+function dayTabLabel(day, nowMs, secret) {
+  const today = isoDateInZurich(nowMs)
+  const todayMs = Date.parse(`${today}T00:00:00+02:00`)
+  const dayMs = Date.parse(`${day.date}T00:00:00+02:00`)
+  const diffDays = Math.round((dayMs - todayMs) / 86_400_000)
+  const wd = new Intl.DateTimeFormat('de-CH', {
+    timeZone: 'Europe/Zurich',
+    weekday: 'short'
+  }).format(new Date(dayMs)).replace('.', '')
+  if (diffDays === 0) return secret ? `Heute · ${wd}` : `Heute (${wd})`
+  if (diffDays === 1) return secret ? `Morgen · ${wd}` : `Morgen (${wd})`
+  if (diffDays === -1) return secret ? `Gestern · ${wd}` : `Gestern (${wd})`
+  return wd
+}
+
+function DayTabs({ days, selectedId, onSelect, now, secret }) {
+  const todayDate = isoDateInZurich(now)
+  return (
+    <div className="tb-day-tabs" role="tablist" aria-label="Tagesauswahl">
+      {days.map((d) => {
+        const isActive = d.id === selectedId
+        const isToday = d.date === todayDate
+        return (
+          <button
+            key={d.id}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            className={`tb-day-tab${isActive ? ' is-active' : ''}${isToday ? ' is-today' : ''}`}
+            onClick={() => onSelect(d.id)}
+          >
+            <span className="tb-day-tab-label">{dayTabLabel(d, now, secret)}</span>
+            <span className="tb-day-tab-chapter">{d.chapter}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function Tagesbriefing({ tripStarted, now }) {
   const { data, loading, error } = useTripProgram()
   const travelStatus = useTravelStatus()
   const { data: weather } = useTravelConditions()
   const secret = useSecretMode()
+  const [pinnedDayId, setPinnedDayId] = useState(null)
 
   const kicker = secret ? 'AKTIVER TAGESBEFEHL' : 'Heute im Fokus'
   const title = secret ? 'Einsatzverlauf' : 'Tagesbriefing'
@@ -2177,17 +2218,27 @@ function Tagesbriefing({ tripStarted, now }) {
   } else if (!data || getUnlockedDays(data.days, now).length === 0) {
     content = <BeforeTripCard secret={secret} />
   } else {
-    const focus = getCurrentFocusDay(data.days, now)
-    const others = (data.days ?? []).filter((d) => d !== focus)
+    const unlocked = (data.days ?? []).filter((d) => !d.locked)
+    const defaultFocus = getCurrentFocusDay(data.days, now)
+    const pinned = pinnedDayId ? unlocked.find((d) => d.id === pinnedDayId) : null
+    const focus = pinned ?? defaultFocus
+    const lockedRest = (data.days ?? []).filter((d) => d.locked)
     content = (
       <>
+        {unlocked.length > 1 && (
+          <DayTabs
+            days={unlocked}
+            selectedId={focus?.id}
+            onSelect={(id) => setPinnedDayId(id === defaultFocus?.id ? null : id)}
+            now={now}
+            secret={secret}
+          />
+        )}
         {focus && <FocusDayCard day={focus} now={now} secret={secret} weather={weather} />}
-        {others.length > 0 && (
+        {lockedRest.length > 0 && (
           <div className="tb-other-days">
-            {others.map((d) => (
-              d.locked
-                ? <LockedDayCard key={d.id} day={d} secret={secret} />
-                : <ClosedOrPendingDayCard key={d.id} day={d} now={now} secret={secret} />
+            {lockedRest.map((d) => (
+              <LockedDayCard key={d.id} day={d} secret={secret} />
             ))}
           </div>
         )}
