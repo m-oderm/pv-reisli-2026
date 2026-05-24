@@ -25,6 +25,15 @@ export default {
     if (url.pathname === '/api/travel-status') {
       return travelStatus.fetch(request, env, ctx)
     }
+    if (url.pathname === '/api/_debug') {
+      return new Response(JSON.stringify({
+        urlHostname: url.hostname,
+        urlHref: request.url,
+        hostHeader: request.headers.get('host'),
+        cfHost: request.headers.get('cf-connecting-host'),
+        env: { ALLOW_TIME_OVERRIDE: env?.ALLOW_TIME_OVERRIDE ?? null }
+      }, null, 2), { headers: { 'content-type': 'application/json' } })
+    }
     return env.ASSETS.fetch(request)
   }
 }
