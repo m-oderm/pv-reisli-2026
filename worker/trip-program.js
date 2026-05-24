@@ -304,7 +304,7 @@ export default {
       return jsonResponse({ error: 'method_not_allowed' }, 405)
     }
 
-    const now = resolveNow(url, env, request)
+    const now = resolveNow(url, env)
 
     const days = TRIP_DAYS.map((day) => {
       const unlocked = Date.parse(day.unlockAt) <= now
@@ -353,8 +353,8 @@ const PRODUCTION_HOSTS = new Set([
   'pv-reisli-2026.marc-odermatt-8c1.workers.dev'
 ])
 
-function resolveNow(url, env, request) {
-  const host = (request?.headers?.get?.('host') || '').toLowerCase()
+function resolveNow(url, env) {
+  const host = url.hostname.toLowerCase()
   const isPreview = !PRODUCTION_HOSTS.has(host)
   const envOverride = env && env.ALLOW_TIME_OVERRIDE === 'true'
   if (isPreview || envOverride) {
