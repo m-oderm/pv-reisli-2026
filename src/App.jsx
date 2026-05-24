@@ -21,18 +21,24 @@ import {
   CloudSun,
   CloudSunRain,
   Compass,
+  Copy,
+  Coffee,
   Droplets,
   Dumbbell,
+  ExternalLink,
+  FileText,
   Flame,
   Footprints,
   HeartPulse,
   HelpCircle,
+  Hourglass,
   Lightbulb,
   Lock,
   Luggage,
   Map,
   MapPin,
   MessageCircle,
+  Martini,
   Moon,
   Mountain,
   Music,
@@ -76,14 +82,46 @@ const EASE_OUT_SOFT = [0.16, 1, 0.3, 1]
 
 // 30.05.2026, 07:45 Uhr Europe/Zurich. Ende Mai gilt CEST, also UTC+2.
 const COUNTDOWN_TARGET_MS = new Date('2026-05-30T07:45:00+02:00').getTime()
+const TRAVEL_QUEST_START_MS = COUNTDOWN_TARGET_MS
+const SATURDAY_UNLOCK_MS = new Date('2026-05-30T12:20:00+02:00').getTime()
+const TRIP_END_MS = new Date('2026-06-02T19:00:00+02:00').getTime()
 
-const NAV_ITEMS = [
+const NAV_ITEMS_PRE_TRIP = [
   { id: 'eckdaten', label: 'Eckdaten' },
   { id: 'countdown', label: 'Countdown' },
   { id: 'wetter', label: 'Wetter' },
   { id: 'packliste', label: 'Packliste' },
   { id: 'dresscode', label: 'Dresscode' }
 ]
+const NAV_ITEMS_DURING_TRIP = [
+  { id: 'tagesbriefing', label: 'Tagesbriefing' },
+  { id: 'eckdaten', label: 'Eckdaten' },
+  { id: 'reiseleitung', label: 'Reiseleitung' },
+  { id: 'wetter', label: 'Wetter' }
+]
+
+function getNavItems(tripStarted) {
+  return tripStarted ? NAV_ITEMS_DURING_TRIP : NAV_ITEMS_PRE_TRIP
+}
+
+// Zeit-Override per ?now=ISO im Frontend. Nur fuer UI-Phase-Entscheidungen,
+// die echte Geheimhaltung laeuft serverseitig im Worker.
+function getOverrideNow() {
+  if (typeof window === 'undefined') return null
+  try {
+    const params = new URLSearchParams(window.location.search)
+    const raw = params.get('now')
+    if (!raw) return null
+    const parsed = Date.parse(raw)
+    return Number.isNaN(parsed) ? null : parsed
+  } catch {
+    return null
+  }
+}
+const NOW_OVERRIDE_MS = getOverrideNow()
+function effectiveNow() {
+  return NOW_OVERRIDE_MS ?? Date.now()
+}
 
 const TRAVEL_DATES = ['2026-05-30', '2026-05-31', '2026-06-01', '2026-06-02']
 
@@ -323,6 +361,207 @@ function useTravelConditions() {
   return { data, loading, isFallback, updatedAt, reload }
 }
 
+/* ----- Tagesprogramm ---------------------------------------------- */
+
+function buildTripProgramUrl() {
+  const base = '/api/trip-program'
+  return NOW_OVERRIDE_MS ? `${base}?now=${encodeURIComponent(new Date(NOW_OVERRIDE_MS).toISOString())}` : base
+}
+
+function useTripProgram() {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const reload = useCallback(async () => {
+    try {
+      const res = await fetch(buildTripProgramUrl(), { cache: 'no-store' })
+      if (!res.ok) throw new Error(`status ${res.status}`)
+      const json = await res.json()
+      setData(json)
+      setError(null)
+    } catch (e) {
+      setError(e?.message || 'unknown')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    reload()
+    const id = setInterval(reload, 60_000)
+    return () => clearInterval(id)
+  }, [reload])
+
+  // Schneller Refetch beim Phasenwechsel: pruefe jede Sekunde, ob ein
+  // unlockAt gerade ueberschritten wurde, dann reload.
+  useEffect(() => {
+    if (!data) return
+    const stamps = []
+    for (const d of data.days ?? []) {
+      if (d.locked && d.unlockAt) stamps.push(Date.parse(d.unlockAt))
+    }
+    for (const h of data?.quest?.hints ?? []) {
+      if (h.locked && h.unlockAt) stamps.push(Date.parse(h.unlockAt))
+    }
+    if (data.saturdayUnlock) stamps.push(Date.parse(data.saturdayUnlock))
+    if (data.travelQuestStart) stamps.push(Date.parse(data.travelQuestStart))
+    const future = stamps.filter((t) => t > effectiveNow())
+    if (future.length === 0) return
+    const id = setInterval(() => {
+      const now = effectiveNow()
+      if (future.some((t) => Math.abs(t - now) <= 1500 && t <= now)) {
+        reload()
+      }
+    }, 1000)
+    return () => clearInterval(id)
+  }, [data, reload])
+
+  return { data, loading, error, reload }
+}
+
+function useTravelStatus() {
+  const [status, setStatus] = useState(null)
+
+  useEffect(() => {
+    let active = true
+    const fallback = () => ({
+      status: 'unknown',
+      delayMinutes: null,
+      message: 'Live-Zuginfo derzeit nicht verfügbar. Die Reiseleitung wirkt dennoch zuversichtlich.',
+      updatedAt: new Date().toISOString()
+    })
+    const tick = async () => {
+      try {
+        const res = await fetch('/api/travel-status', { cache: 'no-store' })
+        if (!res.ok) throw new Error(`status ${res.status}`)
+        const body = await res.json()
+        if (active) setStatus(body)
+      } catch {
+        if (active) setStatus(fallback())
+      }
+    }
+    tick()
+    const id = setInterval(tick, 90_000)
+    return () => { active = false; clearInterval(id) }
+  }, [])
+
+  return status
+}
+
+function isoDateInZurich(ms) {
+  const d = new Date(ms)
+  // YYYY-MM-DD in Europe/Zurich. Wir nutzen toLocaleDateString.
+  const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Zurich' })
+  return fmt.format(d)
+}
+
+function getUnlockedDays(days, nowMs) {
+  if (!Array.isArray(days)) return []
+  return days.filter((d) => !d.locked || Date.parse(d.unlockAt) <= nowMs)
+}
+
+function getCurrentFocusDay(days, nowMs) {
+  if (!Array.isArray(days) || days.length === 0) return null
+  const today = isoDateInZurich(nowMs)
+  const todayDay = days.find((d) => d.date === today && !d.locked)
+  if (todayDay) return todayDay
+  const unlocked = days.filter((d) => !d.locked)
+  return unlocked.length > 0 ? unlocked[unlocked.length - 1] : null
+}
+
+function getUnlockedQuestHints(hints, nowMs) {
+  if (!Array.isArray(hints)) return []
+  return hints.filter((h) => !h.locked)
+}
+
+function getNextLockedHint(hints, nowMs) {
+  if (!Array.isArray(hints)) return null
+  return hints.find((h) => h.locked && Date.parse(h.unlockAt) > nowMs) ?? null
+}
+
+function getNextItemFromDay(day, nowMs) {
+  if (!day?.items) return null
+  // Items mit konkretem HH:MM koennen mit dem aktuellen Tag verglichen werden.
+  // Andere Items (Vormittag, Nachmittag, danach) zaehlen wir nicht.
+  const today = isoDateInZurich(nowMs)
+  if (today !== day.date) return null
+  const nowDate = new Date(nowMs)
+  const fmtHm = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Zurich',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })
+  const nowHm = fmtHm.format(nowDate)
+  for (const item of day.items) {
+    if (typeof item.time === 'string' && /^\d{2}:\d{2}$/.test(item.time) && item.time > nowHm) {
+      return item
+    }
+  }
+  return null
+}
+
+function formatUnlockHm(iso) {
+  const ms = Date.parse(iso)
+  if (Number.isNaN(ms)) return ''
+  return new Intl.DateTimeFormat('de-CH', {
+    timeZone: 'Europe/Zurich',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(ms))
+}
+
+function formatUnlockFull(iso) {
+  const ms = Date.parse(iso)
+  if (Number.isNaN(ms)) return ''
+  return new Intl.DateTimeFormat('de-CH', {
+    timeZone: 'Europe/Zurich',
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(ms))
+}
+
+async function copyToClipboard(text) {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch { /* fallback unten */ }
+  }
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.focus()
+    ta.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(ta)
+    return ok
+  } catch {
+    return false
+  }
+}
+
+const ITEM_TYPE_ICONS = {
+  travel: Train,
+  food: Utensils,
+  lodging: Building2,
+  nightlife: Martini,
+  activity: Map,
+  free: Sparkles,
+  meeting: Users
+}
+function iconForItem(type) {
+  return ITEM_TYPE_ICONS[type] ?? Clock
+}
+
 /* ----- Komponenten ----------------------------------------------- */
 
 function BrandLogo({ size = 44 }) {
@@ -389,7 +628,7 @@ function BrandLogo({ size = 44 }) {
   )
 }
 
-function Nav({ onToggleSecret }) {
+function Nav({ onToggleSecret, navItems }) {
   const [open, setOpen] = useState(false)
   const clickCountRef = useRef(0)
   const resetTimerRef = useRef(null)
@@ -435,7 +674,7 @@ function Nav({ onToggleSecret }) {
           <span /><span /><span />
         </button>
         <nav className={`nav-links ${open ? 'open' : ''}`}>
-          {NAV_ITEMS.map((item) => (
+          {(navItems ?? NAV_ITEMS_PRE_TRIP).map((item) => (
             <button key={item.id} onClick={() => handleClick(item.id)}>
               {item.label}
             </button>
@@ -741,6 +980,9 @@ const SECRET_TOAST_OFF = 'Geheimmodus deaktiviert. Reisebüro-Fassade wiederherg
 
 const SecretModeContext = createContext(false)
 function useSecretMode() { return useContext(SecretModeContext) }
+
+const ToastContext = createContext(() => {})
+function useToast() { return useContext(ToastContext) }
 
 let bodyScrollLockCount = 0
 let bodyScrollLockPrevious = ''
@@ -1869,6 +2111,240 @@ function Wichtig() {
   )
 }
 
+function Tagesbriefing({ tripStarted, now }) {
+  const { data, loading, error } = useTripProgram()
+  const travelStatus = useTravelStatus()
+  const secret = useSecretMode()
+
+  const kicker = secret ? 'AKTIVER TAGESBEFEHL' : 'Heute im Fokus'
+  const title = secret ? 'Einsatzverlauf' : 'Tagesbriefing'
+
+  let content
+  if (loading && !data) {
+    content = <div className="tb-skeleton" aria-hidden="true" />
+  } else if (error && !data) {
+    content = (
+      <Card className="card-cream">
+        <p className="muted">Tagesdossier nicht erreichbar. Reiseleitung bleibt zuversichtlich.</p>
+      </Card>
+    )
+  } else if (data?.showQuest && data.quest) {
+    content = <TravelQuestCard quest={data.quest} travelStatus={travelStatus} now={now} secret={secret} />
+  } else if (!data || getUnlockedDays(data.days, now).length === 0) {
+    content = <BeforeTripCard secret={secret} />
+  } else {
+    const focus = getCurrentFocusDay(data.days, now)
+    const others = (data.days ?? []).filter((d) => d !== focus)
+    content = (
+      <>
+        {focus && <FocusDayCard day={focus} now={now} secret={secret} />}
+        {others.length > 0 && (
+          <div className="tb-other-days">
+            {others.map((d) => (
+              d.locked
+                ? <LockedDayCard key={d.id} day={d} secret={secret} />
+                : <ClosedOrPendingDayCard key={d.id} day={d} now={now} secret={secret} />
+            ))}
+          </div>
+        )}
+      </>
+    )
+  }
+
+  return (
+    <section id="tagesbriefing" className="section">
+      <SectionTitle icon={FileText} kicker={kicker} title={title} />
+      {content}
+    </section>
+  )
+}
+
+function BeforeTripCard({ secret }) {
+  return (
+    <Card className="card-cream tb-before">
+      <div className="tb-before-inner">
+        <span className="tb-before-icon" aria-hidden="true"><Hourglass size={28} /></span>
+        <div>
+          <p className="tb-before-title">{secret ? 'Kein Tagesbefehl freigegeben.' : 'Noch kein Tagesdossier freigegeben.'}</p>
+          <p className="tb-before-text muted">
+            {secret
+              ? 'Aufklaerung wartet auf das Startsignal. Reiseleitung schweigt mit Absicht.'
+              : 'Die Reiseleitung schweigt mit Absicht. Das erste Kapitel öffnet sich pünktlich am Samstagmorgen.'}
+          </p>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function TravelStatusCard({ status, secret }) {
+  if (!status) return null
+  const label = secret ? 'LAGEBERICHT' : 'REISELAGE'
+  const pillClass =
+    status.status === 'on_time' ? 'is-ok' :
+    status.status === 'delayed' ? 'is-warn' : 'is-mute'
+  const pillText =
+    status.status === 'on_time' ? 'pünktlich' :
+    status.status === 'delayed' ? `+${status.delayMinutes ?? '?'} min` : 'k. A.'
+  return (
+    <div className="travel-status-card">
+      <span className="travel-status-label">{label}</span>
+      <span className={`travel-status-pill ${pillClass}`}>{pillText}</span>
+      <span className="travel-status-msg">{status.message}</span>
+    </div>
+  )
+}
+
+function TravelQuestCard({ quest, travelStatus, now, secret }) {
+  const toast = useToast()
+  const hints = quest.hints ?? []
+  const unlocked = getUnlockedQuestHints(hints, now)
+  const latest = unlocked[unlocked.length - 1]
+  const nextLocked = getNextLockedHint(hints, now)
+
+  const handleCopyHint = async (hint) => {
+    const txt = `${hint.title}\n${hint.text}`
+    const ok = await copyToClipboard(txt)
+    toast(ok ? 'Hinweis kopiert.' : 'Hinweis konnte nicht kopiert werden.')
+  }
+
+  return (
+    <Card className="card-cream tb-quest">
+      <div className="tb-quest-head">
+        <span className="tb-quest-badge"><Lock size={12} aria-hidden="true" /> {quest.badge}</span>
+        <span className="tb-quest-status"><Lock size={12} aria-hidden="true" /> Ziel geschwärzt</span>
+      </div>
+      <p className="tb-chapter">{quest.chapter}</p>
+      <h3 className="tb-quest-title">{quest.title}</h3>
+      <p className="tb-motto">«{quest.motto}»</p>
+      <p className="tb-intro">{quest.intro}</p>
+      <p className="tb-hint-meta muted">{quest.hint}</p>
+
+      <TravelStatusCard status={travelStatus} secret={secret} />
+
+      <ol className="tb-hint-list">
+        {hints.map((h) => (
+          <li key={h.id} className={`tb-hint ${h.locked ? 'is-locked' : ''} ${h === latest ? 'is-latest' : ''}`}>
+            <div className="tb-hint-no">Hinweis {h.id}</div>
+            {h.locked ? (
+              <>
+                <div className="tb-hint-status">Status: unter Verschluss</div>
+                <div className="tb-hint-release">Freigabe: {formatUnlockHm(h.unlockAt)} Uhr</div>
+              </>
+            ) : (
+              <>
+                <div className="tb-hint-title">{h.title}</div>
+                <div className="tb-hint-text">{h.text}</div>
+                {h === latest && (
+                  <button type="button" className="tb-hint-copy" onClick={() => handleCopyHint(h)}>
+                    <Copy size={14} aria-hidden="true" /> Hinweis kopieren
+                  </button>
+                )}
+              </>
+            )}
+          </li>
+        ))}
+      </ol>
+
+      {nextLocked && (
+        <p className="tb-next muted">
+          <Clock size={14} aria-hidden="true" /> Nächster Hinweis um {formatUnlockHm(nextLocked.unlockAt)} Uhr
+        </p>
+      )}
+    </Card>
+  )
+}
+
+function FocusDayCard({ day, now, secret }) {
+  const toast = useToast()
+  const nextItem = getNextItemFromDay(day, now)
+
+  const handleCopyBriefing = async () => {
+    const ok = await copyToClipboard(day.whatsappBriefing ?? '')
+    toast(
+      ok
+        ? (secret ? 'Befehl kopiert. Weitergabe an die Mannschaft empfohlen.' : 'Tagesbriefing kopiert. Weitergabe an die Mannschaft empfohlen.')
+        : 'Kopieren fehlgeschlagen. Bitte manuell auswählen.'
+    )
+  }
+
+  return (
+    <Card className="card-cream tb-focus">
+      <div className="tb-focus-head">
+        <span className="tb-chapter">{day.chapter}</span>
+        <h3 className="tb-focus-title">{day.title}</h3>
+        <p className="tb-motto">«{day.motto}»</p>
+      </div>
+      <p className="tb-intro">{day.intro}</p>
+      {day.dayHint && (
+        <p className="tb-day-hint">
+          <ShieldCheck size={14} aria-hidden="true" /> {day.dayHint}
+        </p>
+      )}
+      {nextItem && (
+        <div className="tb-next-up">
+          <span className="tb-next-up-label">{secret ? 'NÄCHSTER EINSATZ' : 'Als Nächstes'}</span>
+          <span className="tb-next-up-time">{nextItem.time}</span>
+          <span className="tb-next-up-title">{nextItem.title}</span>
+        </div>
+      )}
+      <ol className="tb-timeline">
+        {day.items.map((item, idx) => {
+          const Icon = iconForItem(item.type)
+          return (
+            <li key={idx} className="tb-tl-item">
+              <span className="tb-tl-icon" aria-hidden="true"><Icon size={16} /></span>
+              <span className="tb-tl-time">{item.time}</span>
+              <div className="tb-tl-body">
+                <div className="tb-tl-title">{item.title}</div>
+                {item.subtitle && <div className="tb-tl-sub">{item.subtitle}</div>}
+                {item.link && (
+                  <a className="tb-tl-link" href={item.link} target="_blank" rel="noopener noreferrer">
+                    <MapPin size={12} aria-hidden="true" /> Karte öffnen
+                    <ExternalLink size={11} aria-hidden="true" />
+                  </a>
+                )}
+              </div>
+            </li>
+          )
+        })}
+      </ol>
+      <button type="button" className="tb-copy-btn" onClick={handleCopyBriefing}>
+        <Copy size={14} aria-hidden="true" /> {secret ? 'Befehl kopieren' : 'Tagesbriefing kopieren'}
+      </button>
+    </Card>
+  )
+}
+
+function LockedDayCard({ day, secret }) {
+  return (
+    <div className="tb-locked-day">
+      <div className="tb-locked-head">
+        <Lock size={14} aria-hidden="true" />
+        <span className="tb-locked-title">{day.title}</span>
+      </div>
+      <div className="tb-locked-status">{secret ? 'Status: klassifiziert' : 'Status: unter Verschluss'}</div>
+      <div className="tb-locked-release">Freigabe: {formatUnlockFull(day.unlockAt)} Uhr</div>
+    </div>
+  )
+}
+
+function ClosedOrPendingDayCard({ day, now, secret }) {
+  const dayMs = Date.parse(`${day.date}T23:59:59+02:00`)
+  const isClosed = now > dayMs
+  return (
+    <div className={`tb-other-day ${isClosed ? 'is-closed' : ''}`}>
+      <div className="tb-other-head">
+        <span className="tb-other-chapter">{day.chapter}</span>
+        <span className="tb-other-title">{day.title}</span>
+      </div>
+      {isClosed && (
+        <span className="tb-other-badge">{secret ? 'Mission archiviert' : 'Abgeschlossen'}</span>
+      )}
+    </div>
+  )
+}
+
 function Footer() {
   return (
     <footer className="footer">
@@ -1923,6 +2399,7 @@ export default function App() {
     }
   })
   const [secretToast, setSecretToast] = useState(null)
+  const [now, setNow] = useState(() => effectiveNow())
 
   useEffect(() => {
     try {
@@ -1936,6 +2413,13 @@ export default function App() {
     return () => clearTimeout(t)
   }, [secretToast])
 
+  // Sekunden-Tick fuer Phasenwechsel (07:45, 12:20) und next-item-Berechnung.
+  useEffect(() => {
+    if (NOW_OVERRIDE_MS) return  // bei Override keinen Tick
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
+
   const toggleSecretMode = useCallback(() => {
     setSecretMode((prev) => {
       const next = !prev
@@ -1944,27 +2428,34 @@ export default function App() {
     })
   }, [])
 
+  const showToast = useCallback((message) => setSecretToast(message), [])
+
+  const tripStarted = now >= TRAVEL_QUEST_START_MS
+
   return (
     <MotionConfig reducedMotion="user">
       <SecretModeContext.Provider value={secretMode}>
-        <div className={`app${secretMode ? ' secret-mode' : ''}`}>
-          <Nav onToggleSecret={toggleSecretMode} />
-          <main>
-            <Hero />
-            <div className="container">
-              <Eckdaten />
-              <CountdownSection />
-              <Reiseleitung />
-              <Wetter />
-              <Dresscode />
-              <PackingList />
-              <OutdoorAccordion />
-              <Wichtig />
-            </div>
-          </main>
-          <Footer />
-          <SecretToast message={secretToast} />
-        </div>
+        <ToastContext.Provider value={showToast}>
+          <div className={`app${secretMode ? ' secret-mode' : ''}`}>
+            <Nav onToggleSecret={toggleSecretMode} navItems={getNavItems(tripStarted)} />
+            <main>
+              <Hero />
+              <div className="container">
+                <Tagesbriefing tripStarted={tripStarted} now={now} />
+                <Eckdaten />
+                {!tripStarted && <CountdownSection />}
+                <Reiseleitung />
+                <Wetter />
+                {!tripStarted && <Dresscode />}
+                {!tripStarted && <PackingList />}
+                {!tripStarted && <OutdoorAccordion />}
+                {!tripStarted && <Wichtig />}
+              </div>
+            </main>
+            <Footer />
+            <SecretToast message={secretToast} />
+          </div>
+        </ToastContext.Provider>
       </SecretModeContext.Provider>
     </MotionConfig>
   )
