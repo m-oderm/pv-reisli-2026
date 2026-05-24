@@ -2059,6 +2059,59 @@ main { flex: 1; }
   color: var(--ink-soft);
   line-height: 1.45;
 }
+.anreise-route {
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(11, 34, 61, 0.04);
+  border: 1px solid rgba(11, 34, 61, 0.12);
+}
+.anreise-route-label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: var(--track-loose);
+  text-transform: uppercase;
+  color: var(--gold-deep);
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.anreise-route-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.anreise-route-item {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+}
+.anreise-route-item + .anreise-route-item {
+  border-top: 1px dashed rgba(184, 138, 59, 0.3);
+}
+.anreise-route-time {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-variant-numeric: lining-nums tabular-nums;
+  color: var(--navy);
+  font-size: 15px;
+}
+.anreise-route-body { min-width: 0; }
+.anreise-route-stop {
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.35;
+}
+.anreise-route-detail {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+
 .travel-status-platform {
   display: inline-flex;
   align-items: center;
@@ -3061,6 +3114,17 @@ main { flex: 1; }
   background: rgba(250, 204, 21, 0.18);
   color: #facc15;
 }
+.app.secret-mode .anreise-route {
+  background: rgba(74, 222, 128, 0.05);
+  border-color: rgba(74, 222, 128, 0.28);
+}
+.app.secret-mode .anreise-route-label { color: #facc15; }
+.app.secret-mode .anreise-route-time { color: #facc15; }
+.app.secret-mode .anreise-route-stop { color: #d1fae5; }
+.app.secret-mode .anreise-route-detail { color: #86efac; }
+.app.secret-mode .anreise-route-item + .anreise-route-item {
+  border-top-color: rgba(74, 222, 128, 0.22);
+}
 .app.secret-mode .tb-other-day {
   background: rgba(74, 222, 128, 0.05);
   border-color: rgba(74, 222, 128, 0.25);
@@ -3299,6 +3363,17 @@ main { flex: 1; }
   .travel-status-platform {
     background: rgba(216, 176, 106, 0.2);
     color: var(--gold-soft);
+  }
+  .anreise-route {
+    background: rgba(247, 236, 209, 0.04);
+    border-color: rgba(247, 236, 209, 0.14);
+  }
+  .anreise-route-label { color: var(--gold-soft); }
+  .anreise-route-time,
+  .anreise-route-stop { color: var(--ink); }
+  .anreise-route-detail { color: var(--ink-soft); }
+  .anreise-route-item + .anreise-route-item {
+    border-top-color: rgba(247, 236, 209, 0.18);
   }
   .tb-tile-weather {
     background: rgba(247, 236, 209, 0.04);

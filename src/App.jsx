@@ -2281,6 +2281,26 @@ function BeforeTripCard({ secret }) {
   )
 }
 
+function AnreiseRoute({ route, secret }) {
+  const label = secret ? 'EINSATZROUTE' : 'Reiseroute'
+  return (
+    <div className="anreise-route">
+      <span className="anreise-route-label">{label}</span>
+      <ol className="anreise-route-list">
+        {route.map((stop, idx) => (
+          <li key={idx} className="anreise-route-item">
+            <span className="anreise-route-time">{stop.time}</span>
+            <div className="anreise-route-body">
+              <div className="anreise-route-stop">{stop.label}</div>
+              {stop.detail && <div className="anreise-route-detail">{stop.detail}</div>}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
+}
+
 function TravelStatusCard({ status, secret }) {
   if (!status) return null
   const label = secret ? 'LAGEBERICHT' : 'REISELAGE'
@@ -2330,6 +2350,7 @@ function TravelQuestCard({ quest, travelStatus, now, secret }) {
       <p className="tb-hint-meta muted">{quest.hint}</p>
 
       {travelStatus && <TravelStatusCard status={travelStatus} secret={secret} />}
+      {travelStatus?.route?.length > 0 && <AnreiseRoute route={travelStatus.route} secret={secret} />}
 
       <ol className="tb-hint-list">
         {hints.map((h) => (

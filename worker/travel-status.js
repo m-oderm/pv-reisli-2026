@@ -19,6 +19,15 @@ const DEFAULT_MESSAGE = 'Die Reise läuft planmässig.'
 const UNKNOWN_MESSAGE =
   'Live-Zuginfo derzeit nicht verfügbar. Die Reiseleitung wirkt dennoch zuversichtlich.'
 
+// Statische Anreise-Route. Mailand bleibt als Umsteige-Knoten sichtbar,
+// das eigentliche Endziel wird nicht genannt.
+const ANREISE_ROUTE = [
+  { time: '08:00', label: 'Abfahrt Bahnhof Zug', detail: 'EC 13 Richtung Mailand' },
+  { time: '10:50', label: 'Ankunft Mailand Centrale', detail: '2 h 50 min Fahrzeit' },
+  { time: '11:10', label: 'Umstieg', detail: 'FR 9612, ca. 1 h 6 min' },
+  { time: '12:16', label: 'Ankunft am Ziel', detail: null }
+]
+
 export default {
   async fetch(request) {
     if (request.method === 'OPTIONS') return preflight()
@@ -76,6 +85,7 @@ async function fetchSbbStatus() {
       platform,
       plannedDeparture,
       message,
+      route: ANREISE_ROUTE,
       updatedAt: new Date().toISOString()
     }
   } catch {
@@ -85,6 +95,7 @@ async function fetchSbbStatus() {
       platform: null,
       plannedDeparture: null,
       message: UNKNOWN_MESSAGE,
+      route: ANREISE_ROUTE,
       updatedAt: new Date().toISOString()
     }
   }
