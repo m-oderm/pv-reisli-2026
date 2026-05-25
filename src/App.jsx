@@ -2777,15 +2777,28 @@ function summarizeTripProgram(data) {
 function summarizeTravelStatus(data) {
   if (!data || typeof data !== 'object') return null
   const map = { on_time: 'pünktlich', delayed: 'verspätet', unknown: 'unklar' }
+  const riskMap = {
+    safe: 'sicher',
+    tight: 'knapp',
+    missed: 'verpasst'
+  }
   const route = Array.isArray(data.route) ? data.route : []
   const trenitaliaStops = route.filter((s) => s.label === 'Umstieg' || s.label === 'Ankunft am Ziel')
   const trenitaliaLive = trenitaliaStops.some((s) => s.platform || typeof s.delayMinutes === 'number')
+  const transferValue = data.transferRisk
+    ? `${riskMap[data.transferRisk] ?? data.transferRisk}${typeof data.transferMarginMin === 'number' ? ` (${data.transferMarginMin} Min Restpuffer)` : ''}`
+    : '—'
   return [
-    { label: 'Reise-Lage', value: map[data.status] ?? data.status ?? '—' },
+    { label: 'Reise-Lage (kombiniert)', value: map[data.status] ?? data.status ?? '—' },
     {
-      label: 'Verspätung',
+      label: 'SBB-Verspätung',
       value: data.delayMinutes != null ? `${data.delayMinutes} Min` : '—'
     },
+    {
+      label: 'Trenitalia-Verspätung',
+      value: typeof data.trenitaliaDelayMinutes === 'number' ? `${data.trenitaliaDelayMinutes} Min` : '—'
+    },
+    { label: 'Umstieg in Mailand', value: transferValue },
     { label: 'Gleis Bahnhof Zug (SBB)', value: data.platform ?? '—' },
     { label: 'Geplante Abfahrt', value: data.plannedDeparture ? new Date(data.plannedDeparture).toLocaleString('de-CH') : '—' },
     { label: 'Live-Ankunft Mailand', value: data.realtimeArrival ? new Date(data.realtimeArrival).toLocaleString('de-CH') : 'noch keine Echtzeitdaten' },
@@ -3004,7 +3017,7 @@ function DebugSection() {
       {
         key: 'travelStatus',
         title: 'Reise-Lage (SBB + Trenitalia)',
-        description: 'Live-Daten der Anreise: kombiniert SBB-Echtzeit für die Schweizer Etappe mit Trenitalia (via Proxy) für den italienischen Teil. Plus die schrittweise Reiseroute.',
+        description: 'Live-Daten der Anreise: kombiniert SBB-Echtzeit für die Schweizer Etappe mit Trenitalia (via Proxy) für den italienischen Teil. Bewertet auch ob der Umstieg in Mailand bei aktueller Verspätung noch sicher ist (20 Min Puffer).',
         url: statusUrl,
         summarize: summarizeTravelStatus
       },

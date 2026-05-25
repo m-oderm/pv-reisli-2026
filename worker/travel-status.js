@@ -27,6 +27,12 @@ const DEFAULT_MESSAGE = 'Die Reise läuft planmässig.'
 const UNKNOWN_MESSAGE =
   'Live-Zuginfo derzeit nicht verfügbar. Die Reiseleitung wirkt dennoch zuversichtlich.'
 
+// Umstiegs-Bewertung in Mailand. Ankunft SBB 10:50, Abfahrt Trenitalia 11:10
+// = 20 Min Puffer. Faellt der Puffer unter 5 Min, wird der Umstieg knapp;
+// bei 0 oder negativ ist der Anschluss-Trenitalia nicht mehr erreichbar.
+const TRANSFER_BUFFER_MIN = 20
+const TRANSFER_TIGHT_THRESHOLD = 5
+
 // Anreise-Route. Stops erscheinen schrittweise (revealAt). Schweizer Teil
 // (kind: sbb_dep, sbb_arr) wird mit Live-Daten angereichert, italienischer
 // Teil bleibt statisch. Mailand ist Zwischenhalt und nicht in der
@@ -113,11 +119,60 @@ export default {
       fetchTrenitaliaStatus(env, now)
     ])
     const route = buildRoute(status, trenitalia, now)
+    const overall = deriveTransferAwareStatus(status, trenitalia)
     return jsonResponse(
-      { ...status, route },
+      { ...status, ...(overall ?? {}), route },
       200,
       { 'Cache-Control': 'public, max-age=60' }
     )
+  }
+}
+
+// Kombiniert SBB- und Trenitalia-Lage zu einer einzigen Reise-Lage und
+// einer Mannschafts-Nachricht. Bei unbekanntem SBB-Status wird nichts
+// kombiniert (Aufrufer faellt auf SBB-Defaults zurueck).
+function deriveTransferAwareStatus(sbb, trenitalia) {
+  if (!sbb || sbb.status === 'unknown') return null
+
+  const sbbDelay = typeof sbb.delayMinutes === 'number' ? sbb.delayMinutes : 0
+  const trenDep = typeof trenitalia?.dep?.delayMinutes === 'number' ? trenitalia.dep.delayMinutes : 0
+  const trenArr = typeof trenitalia?.arr?.delayMinutes === 'number' ? trenitalia.arr.delayMinutes : 0
+  const trenitaliaDelay = Math.max(trenDep, trenArr)
+
+  const transferMarginMin = TRANSFER_BUFFER_MIN - sbbDelay
+  let transferRisk
+  if (transferMarginMin <= 0) transferRisk = 'missed'
+  else if (transferMarginMin < TRANSFER_TIGHT_THRESHOLD) transferRisk = 'tight'
+  else transferRisk = 'safe'
+
+  let status
+  let message
+  if (transferRisk === 'missed') {
+    status = 'delayed'
+    message = `SBB +${sbbDelay} Min. Anschluss-Trenitalia 11:10 nicht mehr erreichbar. Reiseleitung sucht Plan B.`
+  } else if (transferRisk === 'tight') {
+    status = 'delayed'
+    message = `SBB +${sbbDelay} Min. Umstieg knapp (${transferMarginMin} Min Restpuffer). Schnellfüssig sein.`
+  } else if (sbbDelay > 0 && trenitaliaDelay > 0) {
+    status = 'delayed'
+    message = `SBB +${sbbDelay} Min. Umstieg sicher. Endankunft +${trenitaliaDelay} Min.`
+  } else if (sbbDelay > 0) {
+    status = 'delayed'
+    message = `SBB +${sbbDelay} Min. Umstieg sicher.`
+  } else if (trenitaliaDelay > 0) {
+    status = 'delayed'
+    message = `SBB pünktlich. Endankunft Trenitalia +${trenitaliaDelay} Min.`
+  } else {
+    status = 'on_time'
+    message = DEFAULT_MESSAGE
+  }
+
+  return {
+    status,
+    message,
+    transferMarginMin,
+    transferRisk,
+    trenitaliaDelayMinutes: trenitaliaDelay
   }
 }
 
