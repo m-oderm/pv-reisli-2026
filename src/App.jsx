@@ -810,6 +810,18 @@ function getPreHeroContent(secret) {
   }
 }
 
+// Headline-Verspaetung: die hoehere von SBB und Trenitalia. So zeigt die
+// Pille nicht "+0 min" wenn nur die zweite Etappe verspaetet ist
+// (Status sagt "verspaetet" → Pille soll konsistent sein).
+function getHeadlineDelayMinutes(status) {
+  if (!status) return 0
+  const sbb = typeof status.sbbDelayMinutes === 'number'
+    ? status.sbbDelayMinutes
+    : (typeof status.delayMinutes === 'number' ? status.delayMinutes : 0)
+  const tren = typeof status.trenitaliaDelayMinutes === 'number' ? status.trenitaliaDelayMinutes : 0
+  return Math.max(sbb, tren, 0)
+}
+
 function getAnreiseHeroContent(travelStatus, secret) {
   const route = travelStatus?.route ?? []
   // Naechster Stop: der erste Stop dessen Zeit noch nicht in der Vergangenheit liegt
@@ -825,8 +837,8 @@ function getAnreiseHeroContent(travelStatus, secret) {
 
   let statusText = 'Unterwegs'
   if (travelStatus?.status === 'on_time') statusText = 'pünktlich'
-  else if (travelStatus?.status === 'delayed' && typeof travelStatus.delayMinutes === 'number') {
-    statusText = `+${travelStatus.delayMinutes} min`
+  else if (travelStatus?.status === 'delayed') {
+    statusText = `+${getHeadlineDelayMinutes(travelStatus)} min`
   } else if (travelStatus?.status === 'unknown') statusText = 'Lage unklar'
 
   return {
@@ -862,8 +874,8 @@ function getRueckreiseHeroContent(travelStatus, secret) {
 
   let statusText = 'Heimfahrt'
   if (travelStatus?.status === 'on_time') statusText = 'pünktlich'
-  else if (travelStatus?.status === 'delayed' && typeof travelStatus.delayMinutes === 'number') {
-    statusText = `+${travelStatus.delayMinutes} min`
+  else if (travelStatus?.status === 'delayed') {
+    statusText = `+${getHeadlineDelayMinutes(travelStatus)} min`
   } else if (travelStatus?.status === 'unknown') statusText = 'Lage unklar'
 
   return {
@@ -2533,7 +2545,7 @@ function TravelStatusCard({ status, secret }) {
     status.status === 'delayed' ? 'is-warn' : 'is-mute'
   const pillText =
     status.status === 'on_time' ? 'pünktlich' :
-    status.status === 'delayed' ? `+${status.delayMinutes ?? '?'} min` : 'k. A.'
+    status.status === 'delayed' ? `+${getHeadlineDelayMinutes(status)} min` : 'k. A.'
   return (
     <div className="travel-status-card">
       <span className="travel-status-label">{label}</span>
