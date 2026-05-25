@@ -130,7 +130,8 @@ async function probeSbbLeg(lookup, env) {
   try {
     const json = JSON.parse(result.andamento.markdown)
     const fermate = Array.isArray(json?.fermate) ? json.fermate : []
-    const origin = fermate.find((f) => f.id === lookup.originStationId) ?? null
+    const originIdx = fermate.findIndex((f) => f.id === lookup.originStationId)
+    const origin = originIdx >= 0 ? fermate[originIdx] : null
     const plannedDepartureMs = typeof origin?.partenza_teorica === 'number' ? origin.partenza_teorica : null
     const effectiveDepartureMs = typeof origin?.partenzaReale === 'number' ? origin.partenzaReale : plannedDepartureMs
     const scheduleOk = isInZurichDepartureWindow(plannedDepartureMs, lookup.depHourWindowZurich)
@@ -145,11 +146,29 @@ async function probeSbbLeg(lookup, env) {
       delayMinutes: typeof origin?.ritardoPartenza === 'number' ? origin.ritardoPartenza : 0,
       windowZurich: `${lookup.depHourWindowZurich.min}:00–${lookup.depHourWindowZurich.max}:00`
     }
+    // Zug-Identitaets-Checks, die fetchSbbLegOriginPlatform durchsetzt.
+    const destinationCombined = `${json?.destinazione ?? ''} ${json?.destinazioneEstera ?? ''}`.toUpperCase()
+    const originIsFirstOk = originIdx === 0
+    const categoryOk = !lookup.requireCategoryEquals || json?.categoria === lookup.requireCategoryEquals
+    const destinationOk = !Array.isArray(lookup.requireDestinationContains) || lookup.requireDestinationContains.length === 0
+      || lookup.requireDestinationContains.some((n) => destinationCombined.includes(n.toUpperCase()))
+    result.parsed.identityCheck = {
+      originIsFirstStop: originIsFirstOk,
+      requireOriginIsFirstStop: !!lookup.requireOriginIsFirstStop,
+      category: json?.categoria ?? null,
+      categoryOk,
+      requireCategoryEquals: lookup.requireCategoryEquals ?? null,
+      destinationCombined: destinationCombined.trim() || null,
+      destinationOk,
+      requireDestinationContains: lookup.requireDestinationContains ?? null,
+      allChecksPass: (!lookup.requireOriginIsFirstStop || originIsFirstOk) && categoryOk && destinationOk
+    }
     result.parsed.platform =
       origin?.binarioEffettivoPartenzaDescrizione ??
       origin?.binarioProgrammatoPartenzaDescrizione ??
       null
     result.parsed.platformAccepted = !!result.parsed.platform && scheduleOk
+      && result.parsed.identityCheck.allChecksPass
   } catch (e) {
     result.parsed.parseError = String(e?.message || e)
   }

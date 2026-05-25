@@ -3001,6 +3001,31 @@ function appendSbbLegSection(items, sectionTitle, leg) {
   if (andamento) items.push({ label: 'Detail-Abfrage (Schritt 2)', value: describeStepStatus(andamento) })
   if (parsed?.trainName) items.push({ label: 'Zug-Name laut Trenitalia', value: parsed.trainName })
   if (parsed?.destination) items.push({ label: 'Endziel laut Trenitalia', value: parsed.destination })
+  if (parsed?.identityCheck) {
+    const id = parsed.identityCheck
+    if (id.requireOriginIsFirstStop) {
+      items.push({
+        label: 'Mailand ist Startbahnhof',
+        value: id.originIsFirstStop ? 'ja (erster Halt)' : 'NEIN (Zug fährt nur durch)'
+      })
+    }
+    if (id.requireCategoryEquals) {
+      items.push({
+        label: `Kategorie (erwartet ${id.requireCategoryEquals})`,
+        value: `${id.category ?? '—'}${id.categoryOk ? ' · passt' : ' · NICHT passend'}`
+      })
+    }
+    if (id.requireDestinationContains?.length > 0) {
+      items.push({
+        label: `Endziel enthält ${id.requireDestinationContains.join(' / ')}`,
+        value: id.destinationOk ? 'ja' : 'NEIN'
+      })
+    }
+    items.push({
+      label: 'Identitäts-Checks gesamt',
+      value: id.allChecksPass ? 'alle bestanden' : 'mindestens einer fehlgeschlagen'
+    })
+  }
   if (parsed?.scheduleCheck) {
     items.push({ label: 'Geplante Mailand-Abfahrt', value: parsed.scheduleCheck.plannedDeparture ?? '—' })
     items.push({

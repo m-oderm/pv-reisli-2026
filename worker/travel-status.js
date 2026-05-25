@@ -119,7 +119,16 @@ const RETURN_CONFIG = {
     trainNo: '20',
     originStationId: MILANO_CENTRALE_ID,
     depHourWindowZurich: { min: 14, max: 16 },
-    label: 'EC 20'
+    label: 'EC 20',
+    // Strenge Validierung, da Zugnummer "20" generisch ist. Heute liefert
+    // cerca zwei Treffer (Laveno + Mailand). Drei Checks zusaetzlich zur
+    // Origin-Station und zum Zeitfenster:
+    //   * Origin muss der erste fermata sein (Zug startet in Mailand)
+    //   * categoria muss "EC" sein (nicht Regional / IC / FR)
+    //   * Endziel muss Richtung Zuerich sein
+    requireOriginIsFirstStop: true,
+    requireCategoryEquals: 'EC',
+    requireDestinationContains: ['ZUERICH', 'ZURICH', 'ZÜRICH']
   },
   // Rueckreise: alle Stops sind ab Unlock-Zeit sichtbar (kein schrittweises Reveal).
   route: [
@@ -516,11 +525,25 @@ export async function fetchSbbLegOriginPlatform(env, lookup) {
     }
 
     const fermate = Array.isArray(andJson?.fermate) ? andJson.fermate : []
-    const origin = fermate.find((f) => f.id === lookup.originStationId)
-    if (!origin) return null
+    const originIdx = fermate.findIndex((f) => f.id === lookup.originStationId)
+    if (originIdx < 0) return null
+    // Origin muss der erste fermata sein (Zug startet hier, nicht nur durch).
+    if (lookup.requireOriginIsFirstStop && originIdx !== 0) return null
+    const origin = fermate[originIdx]
 
     // Plausibilitaet: planmaessige Abfahrt im erwarteten Fenster.
     if (!isInZurichDepartureWindow(origin.partenza_teorica, lookup.depHourWindowZurich)) return null
+
+    // Kategorie-Check (EC, nicht Regional / IC / FR).
+    if (lookup.requireCategoryEquals && andJson?.categoria !== lookup.requireCategoryEquals) return null
+
+    // Endziel muss Richtung Zuerich gehen. destinazione ist die letzte
+    // Italien-Station (z.B. CHIASSO), destinazioneEstera das ausland-Ziel.
+    if (Array.isArray(lookup.requireDestinationContains) && lookup.requireDestinationContains.length > 0) {
+      const dest = `${andJson?.destinazione ?? ''} ${andJson?.destinazioneEstera ?? ''}`.toUpperCase()
+      const matches = lookup.requireDestinationContains.some((needle) => dest.includes(needle.toUpperCase()))
+      if (!matches) return null
+    }
 
     const platform =
       origin.binarioEffettivoPartenzaDescrizione ??
