@@ -75,8 +75,16 @@ function hmInZurich(iso) {
 
 const TEST_OVERRIDE_TOKEN = 'pegelspitze-bunker-2026'
 
+// Wenn JINA_API_KEY als Cloudflare-Secret hinterlegt ist, schickt der Worker
+// den Bearer-Header mit. Damit fallen die anonymen 20 Crawls/Min/IP weg.
+// Ohne Key bleibt der Code rueckwaertskompatibel (anonym mit Limit).
+function jinaHeaders(env) {
+  const key = env?.JINA_API_KEY
+  return key ? { Authorization: `Bearer ${key}` } : {}
+}
+
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     if (request.method === 'OPTIONS') return preflight()
     if (request.method !== 'GET') {
       return jsonResponse({ error: 'method_not_allowed' }, 405)
@@ -86,7 +94,7 @@ export default {
     const now = resolveNow(url)
     const [status, trenitalia] = await Promise.all([
       fetchSbbStatus(),
-      fetchTrenitaliaStatus(now)
+      fetchTrenitaliaStatus(env, now)
     ])
     const route = buildRoute(status, trenitalia, now)
     return jsonResponse(
@@ -152,13 +160,15 @@ function isRateLimitedBody(text) {
   return typeof text === 'string' && /"code":\s*429|RateLimitTriggered|Per IP rate limit/i.test(text)
 }
 
-async function fetchTrenitaliaStatus(nowMs) {
+async function fetchTrenitaliaStatus(env, nowMs) {
   try {
     // 1. cerca treno: gibt uns Origin-Station-ID des Zuges am heutigen Tag.
     // 15 min Cache, da Tagesliste sich nicht oft aendert und r.jina.ai
-    // ein striktes Rate-Limit (20 Crawls/Min/IP) hat.
+    // ein striktes Rate-Limit (20 Crawls/Min/IP anonym) hat. Mit Key
+    // sind die Limits deutlich hoeher, Cache schont trotzdem Tokens.
     const cercaUrl = `${VT_PROXY}/cercaNumeroTrenoTrenoAutocomplete/${TRENITALIA_TRAIN}`
     const cercaRes = await fetch(cercaUrl, {
+      headers: jinaHeaders(env),
       cf: { cacheTtl: 900, cacheEverything: true }
     })
     if (!cercaRes.ok) return null
@@ -189,6 +199,7 @@ async function fetchTrenitaliaStatus(nowMs) {
     // Rate-Limit des Proxy wird nicht ueberreizt.
     const andUrl = `${VT_PROXY}/andamentoTreno/${pick.stationId}/${pick.trainNo}/${pick.epoch}`
     const andRes = await fetch(andUrl, {
+      headers: jinaHeaders(env),
       cf: { cacheTtl: 180, cacheEverything: true }
     })
     if (!andRes.ok) return null

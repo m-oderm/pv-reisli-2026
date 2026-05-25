@@ -13,8 +13,15 @@ const TORINO_PORTA_NUOVA_ID = 'S00219'
 const TRENITALIA_TRAIN = '9612'
 const TEST_OVERRIDE_TOKEN = 'pegelspitze-bunker-2026'
 
+// Bearer-Header fuer r.jina.ai, falls JINA_API_KEY als Secret gesetzt ist.
+// Ohne Key wird anonym (mit 20/Min/IP-Limit) gecrawled.
+function jinaHeaders(env) {
+  const key = env?.JINA_API_KEY
+  return key ? { Authorization: `Bearer ${key}` } : {}
+}
+
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     if (request.method === 'OPTIONS') return preflight()
     if (request.method !== 'GET') {
       return jsonResponse({ error: 'method_not_allowed' }, 405)
@@ -31,9 +38,10 @@ export default {
         train: TRENITALIA_TRAIN,
         milanoCentraleId: MILANO_CENTRALE_ID,
         torinoPortaNuovaId: TORINO_PORTA_NUOVA_ID,
+        auth: env?.JINA_API_KEY ? 'mit Key' : 'anonym',
         fetchedAt: new Date().toISOString()
       },
-      cerca: await fetchStep(`${VT_PROXY}/cercaNumeroTrenoTrenoAutocomplete/${TRENITALIA_TRAIN}`),
+      cerca: await fetchStep(`${VT_PROXY}/cercaNumeroTrenoTrenoAutocomplete/${TRENITALIA_TRAIN}`, env),
       andamento: null,
       parsed: null
     }
@@ -52,7 +60,7 @@ export default {
       result.parsed = { allIds: ids, pickedForAndamento: pick }
       if (pick) {
         const andUrl = `${VT_PROXY}/andamentoTreno/${pick.stationId}/${pick.trainNo}/${pick.epoch}`
-        result.andamento = await fetchStep(andUrl)
+        result.andamento = await fetchStep(andUrl, env)
         if (result.andamento?.ok && result.andamento.markdown) {
           try {
             const json = JSON.parse(result.andamento.markdown)
@@ -83,10 +91,13 @@ export default {
   }
 }
 
-async function fetchStep(url) {
+async function fetchStep(url, env) {
   const startedAt = Date.now()
   try {
-    const res = await fetch(url, { cf: { cacheTtl: 0, cacheEverything: false } })
+    const res = await fetch(url, {
+      headers: jinaHeaders(env),
+      cf: { cacheTtl: 0, cacheEverything: false }
+    })
     const text = await res.text()
     // r.jina.ai-Wrap: nach "Markdown Content:" steht der eigentliche Inhalt
     const wrapSplit = text.split('Markdown Content:')
