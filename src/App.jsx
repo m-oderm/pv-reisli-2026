@@ -135,6 +135,17 @@ function getTestKey() {
 }
 const TEST_KEY = getTestKey()
 
+function getDebugFlag() {
+  if (typeof window === 'undefined') return false
+  try {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('debug') === '1'
+  } catch {
+    return false
+  }
+}
+const DEBUG_MODE = getDebugFlag()
+
 const TRAVEL_DATES = ['2026-05-30', '2026-05-31', '2026-06-01', '2026-06-02']
 
 const FALLBACK_PAYLOAD = {
@@ -2719,6 +2730,382 @@ function ClosedOrPendingDayCard({ day, now, secret }) {
   )
 }
 
+function StatusBadge({ status }) {
+  const map = {
+    ok: { text: 'antwortet', cls: 'is-ok' },
+    pending: { text: 'lädt …', cls: 'is-pending' },
+    err: { text: 'antwortet nicht', cls: 'is-err' },
+    'rate-limited': { text: 'überlastet', cls: 'is-warn' }
+  }
+  const m = map[status] ?? map.pending
+  return <span className={`debug-status ${m.cls}`}>{m.text}</span>
+}
+
+function HighlightList({ items }) {
+  if (!items?.length) return null
+  return (
+    <dl className="debug-highlights">
+      {items.map((h, i) => (
+        <div key={i} className="debug-highlight">
+          <dt>{h.label}</dt>
+          <dd>{h.value ?? <span className="debug-empty">—</span>}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+function summarizeTripProgram(data) {
+  if (!data || typeof data !== 'object') return null
+  const days = Array.isArray(data.days) ? data.days : []
+  const unlocked = days.filter((d) => !d.locked)
+  const quest = data.quest
+  const questHints = Array.isArray(quest?.hints) ? quest.hints : []
+  const questUnlocked = questHints.filter((h) => !h.locked).length
+  return [
+    { label: 'Zeit (Server-Sicht)', value: data.now ? new Date(data.now).toLocaleString('de-CH') : null },
+    { label: 'Anzahl Tage geliefert', value: days.length },
+    { label: 'Davon freigegeben', value: `${unlocked.length} von ${days.length}` },
+    { label: 'Anreise-Quest aktiv', value: data.showQuest ? 'ja' : 'nein' },
+    {
+      label: 'Quest-Hinweise sichtbar',
+      value: questHints.length > 0 ? `${questUnlocked} von ${questHints.length}` : '—'
+    }
+  ]
+}
+
+function summarizeTravelStatus(data) {
+  if (!data || typeof data !== 'object') return null
+  const map = { on_time: 'pünktlich', delayed: 'verspätet', unknown: 'unklar' }
+  const route = Array.isArray(data.route) ? data.route : []
+  const trenitaliaStops = route.filter((s) => s.label === 'Umstieg' || s.label === 'Ankunft am Ziel')
+  const trenitaliaLive = trenitaliaStops.some((s) => s.platform || typeof s.delayMinutes === 'number')
+  return [
+    { label: 'Reise-Lage', value: map[data.status] ?? data.status ?? '—' },
+    {
+      label: 'Verspätung',
+      value: data.delayMinutes != null ? `${data.delayMinutes} Min` : '—'
+    },
+    { label: 'Gleis Bahnhof Zug (SBB)', value: data.platform ?? '—' },
+    { label: 'Geplante Abfahrt', value: data.plannedDeparture ? new Date(data.plannedDeparture).toLocaleString('de-CH') : '—' },
+    { label: 'Live-Ankunft Mailand', value: data.realtimeArrival ? new Date(data.realtimeArrival).toLocaleString('de-CH') : 'noch keine Echtzeitdaten' },
+    { label: 'Route-Stops sichtbar', value: `${route.length} von 4` },
+    {
+      label: 'Trenitalia-Daten im Route-Stop',
+      value: trenitaliaStops.length === 0
+        ? 'noch nicht freigegeben'
+        : (trenitaliaLive ? 'live ergänzt' : 'nur statische Werte')
+    },
+    { label: 'Nachricht für Mannschaft', value: data.message ?? '—' }
+  ]
+}
+
+function summarizeTravelConditions(data) {
+  if (!data || typeof data !== 'object' || !data.daily) return null
+  const t = data.daily.time ?? []
+  const first = t[0]
+  const max = data.daily.temperature_2m_max?.[0]
+  const min = data.daily.temperature_2m_min?.[0]
+  const pop = data.daily.precipitation_probability_max?.[0]
+  return [
+    { label: 'Tage in der Vorhersage', value: t.length },
+    { label: 'Erster Tag', value: first ? new Date(first).toLocaleDateString('de-CH') : '—' },
+    { label: 'Max-Temperatur Tag 1', value: typeof max === 'number' ? `${Math.round(max)}°` : '—' },
+    { label: 'Min-Temperatur Tag 1', value: typeof min === 'number' ? `${Math.round(min)}°` : '—' },
+    { label: 'Regenwahrscheinlichkeit Tag 1', value: typeof pop === 'number' ? `${pop} %` : '—' },
+    { label: 'Hinweis im Frontend', value: data.note ?? '—' }
+  ]
+}
+
+function describeStepStatus(step) {
+  if (!step) return '—'
+  if (step.error) return `Verbindungsfehler: ${step.error}`
+  const rateLimited = typeof step.rawTextPreview === 'string' && /"code":\s*429|RateLimitTriggered|Per IP rate limit/i.test(step.rawTextPreview)
+  if (rateLimited) {
+    return `überlastet (HTTP ${step.status}, r.jina.ai-Rate-Limit erreicht)`
+  }
+  if (step.ok) {
+    return `antwortet (HTTP ${step.status}, ${step.durationMs} ms)`
+  }
+  return `Fehler (HTTP ${step.status}, ${step.durationMs} ms)`
+}
+
+function summarizeDebugTrenitalia(data) {
+  if (!data || typeof data !== 'object') return null
+  const cerca = data.cerca
+  const andamento = data.andamento
+  const parsed = data.parsed
+  const items = []
+  items.push({
+    label: 'Vermittler (HTTPS-Proxy)',
+    value: 'r.jina.ai'
+  })
+  items.push({
+    label: 'Eigentliche Quelle',
+    value: 'viaggiatreno.it (italienische Bahn, nur HTTP)'
+  })
+  items.push({ label: 'Zug-Nummer', value: data.meta?.train ?? '—' })
+  if (cerca) {
+    items.push({
+      label: 'Zug-Suche (Schritt 1)',
+      value: describeStepStatus(cerca)
+    })
+  }
+  if (parsed?.allIds) {
+    items.push({
+      label: 'Gefundene Zug-IDs heute',
+      value: parsed.allIds.length === 0 ? 'keine' : `${parsed.allIds.length} (${parsed.allIds.map((i) => i.stationId).join(', ')})`
+    })
+  }
+  if (parsed?.pickedForAndamento) {
+    const p = parsed.pickedForAndamento
+    items.push({
+      label: 'Ausgewählter Eintrag',
+      value: `${p.stationId} · Zug ${p.trainNo}`
+    })
+  }
+  if (andamento) {
+    items.push({
+      label: 'Detail-Abfrage (Schritt 2)',
+      value: describeStepStatus(andamento)
+    })
+  }
+  if (parsed?.fermateCount != null) {
+    items.push({ label: 'Anzahl Stops im Zug', value: parsed.fermateCount })
+    items.push({
+      label: 'Mailand Centrale gefunden',
+      value: parsed.milanoStop ? 'ja' : 'nein'
+    })
+    items.push({
+      label: 'Turin Porta Nuova gefunden',
+      value: parsed.torinoStop ? 'ja' : 'nein'
+    })
+  }
+  if (parsed?.milanoStop) {
+    const m = parsed.milanoStop
+    items.push({
+      label: 'Mailand: Gleis (geplant / effektiv)',
+      value: `${m.binarioProgrammatoPartenzaDescrizione ?? '—'} / ${m.binarioEffettivoPartenzaDescrizione ?? '—'}`
+    })
+    items.push({
+      label: 'Mailand: Verspätung Abfahrt',
+      value: typeof m.ritardoPartenza === 'number' ? `${m.ritardoPartenza} Min` : '—'
+    })
+  }
+  if (parsed?.parseError) {
+    items.push({ label: 'Parse-Fehler', value: parsed.parseError })
+  }
+  return items
+}
+
+function detectRateLimit(data) {
+  if (!data || typeof data !== 'object') return false
+  // Worker-Endpoint signalisiert Rate-Limit indirekt: cerca/andamento
+  // hat rawTextPreview mit code:429
+  const samples = [data.cerca?.rawTextPreview, data.andamento?.rawTextPreview]
+  return samples.some((s) => typeof s === 'string' && /"code":\s*429|RateLimitTriggered|Per IP rate limit/i.test(s))
+}
+
+function DebugBlock({ title, description, status, url, httpStatus, durationMs, data, error, highlights }) {
+  const limited = detectRateLimit(data)
+  const friendlyStatus = limited ? 'rate-limited' : status
+  return (
+    <article className="debug-block">
+      <header className="debug-block-head">
+        <div>
+          <h3 className="debug-block-title">{title}</h3>
+          {description && <p className="debug-block-desc">{description}</p>}
+        </div>
+        <StatusBadge status={friendlyStatus} />
+      </header>
+      <div className="debug-meta-row">
+        {typeof httpStatus === 'number' && <span className="debug-chip">HTTP {httpStatus}</span>}
+        {typeof durationMs === 'number' && <span className="debug-chip">{durationMs} ms</span>}
+      </div>
+      {url && (
+        <div className="debug-url">
+          <span className="debug-url-label">Endpunkt</span>
+          <code>{url}</code>
+        </div>
+      )}
+      {error && !limited && <p className="debug-error">{error}</p>}
+      {limited && (
+        <p className="debug-warning">
+          Der HTTPS-Vermittler <strong>r.jina.ai</strong> erlaubt nur 20 Aufrufe pro Minute pro IP und ist gerade überlastet.
+          Das ist <em>nicht</em> ein Fehler von viaggiatreno.it. Die App fällt automatisch auf statische Werte zurück.
+          Nach 1 bis 2 Minuten erneut probieren.
+        </p>
+      )}
+      <HighlightList items={highlights} />
+      {data !== undefined && (
+        <details className="debug-json-wrap">
+          <summary>Rohdaten anzeigen</summary>
+          <pre className="debug-json">{typeof data === 'string' ? data : JSON.stringify(data, null, 2)}</pre>
+        </details>
+      )}
+    </article>
+  )
+}
+
+function DebugSection() {
+  const [endpoints, setEndpoints] = useState({})
+  const [reloadCount, setReloadCount] = useState(0)
+
+  const calls = useMemo(() => {
+    const tripUrl = (() => {
+      const p = new URLSearchParams()
+      if (NOW_OVERRIDE_MS) p.set('now', new Date(NOW_OVERRIDE_MS).toISOString())
+      if (TEST_KEY) p.set('testKey', TEST_KEY)
+      const q = p.toString()
+      return q ? `/api/trip-program?${q}` : '/api/trip-program'
+    })()
+    const statusUrl = (() => {
+      const p = new URLSearchParams()
+      if (NOW_OVERRIDE_MS) p.set('now', new Date(NOW_OVERRIDE_MS).toISOString())
+      if (TEST_KEY) p.set('testKey', TEST_KEY)
+      const q = p.toString()
+      return q ? `/api/travel-status?${q}` : '/api/travel-status'
+    })()
+    const debugUrl = `/api/debug-trenitalia?testKey=${encodeURIComponent(TEST_KEY ?? '')}`
+    return [
+      {
+        key: 'tripProgram',
+        title: 'Tagesprogramm',
+        description: 'Welche Tage und Anreise-Hinweise schon freigegeben sind. Vor jedem unlockAt liefert der Server nur einen Platzhalter, danach die vollen Details.',
+        url: tripUrl,
+        summarize: summarizeTripProgram
+      },
+      {
+        key: 'travelStatus',
+        title: 'Reise-Lage (SBB + Trenitalia)',
+        description: 'Live-Daten der Anreise: kombiniert SBB-Echtzeit für die Schweizer Etappe mit Trenitalia (via Proxy) für den italienischen Teil. Plus die schrittweise Reiseroute.',
+        url: statusUrl,
+        summarize: summarizeTravelStatus
+      },
+      {
+        key: 'travelConditions',
+        title: 'Wetter',
+        description: 'Mehrtägige Wettervorhersage am Zielort über Open-Meteo. Der Worker liefert nur generische Wetterfelder, keine Koordinaten oder Ortsnamen.',
+        url: '/api/travel-conditions',
+        summarize: summarizeTravelConditions
+      },
+      {
+        key: 'debugTrenitalia',
+        title: 'Trenitalia roh (r.jina.ai)',
+        description: 'Die unverarbeiteten Antworten des italienischen Live-Systems ViaggiaTreno, gespiegelt über den HTTPS-Proxy r.jina.ai. Zeigt Schritt 1 (Zug-Suche) und Schritt 2 (Live-Lauf).',
+        url: debugUrl,
+        summarize: summarizeDebugTrenitalia
+      }
+    ]
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    setEndpoints((prev) => {
+      const next = { ...prev }
+      for (const c of calls) next[c.key] = { ...next[c.key], status: 'pending', url: c.url }
+      return next
+    })
+    Promise.all(calls.map(async (c) => {
+      const startedAt = Date.now()
+      try {
+        const res = await fetch(c.url, { cache: 'no-store' })
+        const contentType = res.headers.get('content-type') || ''
+        const text = await res.text()
+        let parsed
+        if (contentType.includes('application/json')) {
+          try {
+            parsed = JSON.parse(text)
+          } catch {
+            parsed = text
+          }
+        } else {
+          parsed = text
+        }
+        if (active) {
+          setEndpoints((prev) => ({
+            ...prev,
+            [c.key]: {
+              status: res.ok ? 'ok' : 'err',
+              url: c.url,
+              httpStatus: res.status,
+              durationMs: Date.now() - startedAt,
+              data: parsed,
+              error: res.ok ? null : `HTTP ${res.status}`
+            }
+          }))
+        }
+      } catch (e) {
+        if (active) {
+          setEndpoints((prev) => ({
+            ...prev,
+            [c.key]: {
+              status: 'err',
+              url: c.url,
+              durationMs: Date.now() - startedAt,
+              data: null,
+              error: String(e?.message || e)
+            }
+          }))
+        }
+      }
+    }))
+    return () => { active = false }
+  }, [calls, reloadCount])
+
+  return (
+    <section id="debug" className="section debug-section">
+      <SectionTitle icon={FileText} kicker="API-Debug · nur fuer Tests" title="API-Status" />
+      <Card className="card-cream">
+        <div className="debug-toolbar">
+          <ul className="debug-meta-list">
+            <li>
+              <span className="debug-meta-label">Test-Schlüssel</span>
+              <span className={`debug-meta-value ${TEST_KEY ? 'is-ok' : 'is-warn'}`}>
+                {TEST_KEY ? 'gesetzt' : 'fehlt (Trenitalia bleibt verschlossen)'}
+              </span>
+            </li>
+            <li>
+              <span className="debug-meta-label">Simulierte Zeit</span>
+              <span className="debug-meta-value">
+                {NOW_OVERRIDE_MS ? new Date(NOW_OVERRIDE_MS).toLocaleString('de-CH') : 'echte aktuelle Zeit'}
+              </span>
+            </li>
+            <li>
+              <span className="debug-meta-label">Browser-Zeit</span>
+              <span className="debug-meta-value">{new Date().toLocaleString('de-CH')}</span>
+            </li>
+          </ul>
+          <button type="button" className="weather-refresh debug-reload" onClick={() => setReloadCount((c) => c + 1)} aria-label="Daten neu laden">
+            <RefreshCw size={18} />
+          </button>
+        </div>
+        {calls.map((c) => {
+          const e = endpoints[c.key] || { status: 'pending', url: c.url }
+          const highlights = e.data && c.summarize ? c.summarize(e.data) : null
+          return (
+            <DebugBlock
+              key={c.key}
+              title={c.title}
+              description={c.description}
+              status={e.status}
+              url={e.url}
+              httpStatus={e.httpStatus}
+              durationMs={e.durationMs}
+              data={e.data}
+              error={e.error}
+              highlights={highlights}
+            />
+          )
+        })}
+        <p className="debug-note">
+          Diese Seite ist nur über den URL-Parameter <code>?debug=1</code> sichtbar. Für Trenitalia-Live-Daten muss zusätzlich <code>testKey</code> gesetzt sein. Werte werden 1:1 vom Server gespiegelt, nichts wird hier umgerechnet oder weggelassen.
+        </p>
+      </Card>
+    </section>
+  )
+}
+
 function Abschied() {
   const secret = useSecretMode()
   const facts = [
@@ -2853,18 +3240,20 @@ export default function App() {
   const tripStarted = now >= TRAVEL_QUEST_START_MS
   const tripEnded = now >= TRIP_END_MS
   const showTagesbriefing = now >= SATURDAY_MIDNIGHT_MS && !tripEnded
-  const navItems = tripEnded ? [] : getNavItems(tripStarted)
+  const navItems = (DEBUG_MODE || tripEnded) ? [] : getNavItems(tripStarted)
 
   return (
     <MotionConfig reducedMotion="user">
       <SecretModeContext.Provider value={secretMode}>
         <ToastContext.Provider value={showToast}>
-          <div className={`app${secretMode ? ' secret-mode' : ''}${tripEnded ? ' trip-ended' : ''}`}>
+          <div className={`app${secretMode ? ' secret-mode' : ''}${tripEnded ? ' trip-ended' : ''}${DEBUG_MODE ? ' debug-mode' : ''}`}>
             <Nav onToggleSecret={toggleSecretMode} navItems={navItems} />
             <main>
-              <Hero />
+              {!DEBUG_MODE && <Hero />}
               <div className="container">
-                {tripEnded ? (
+                {DEBUG_MODE ? (
+                  <DebugSection />
+                ) : tripEnded ? (
                   <Abschied />
                 ) : (
                   <>
