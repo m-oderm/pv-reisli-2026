@@ -54,6 +54,12 @@ const OUTBOUND_CONFIG = {
   // Statisches Ende der Anreise-Sichtbarkeit. Wird durch Live-Verspaetung
   // der letzten Etappe (Trenitalia-Ankunft Turin) dynamisch verlaengert.
   staticEndMs: Date.parse('2026-05-30T12:20:00+02:00'),
+  // Trenitalia-Fetch nur innerhalb dieses Fensters. Ausserhalb wird der
+  // Upstream-Call gespart (kein r.jina.ai-Hit). Praktisches Anreise-
+  // Fenster: 15 min vor erstem Reveal bis ca. 45 min nach planmaessiger
+  // Ankunft in Turin.
+  fetchWindowStartMs: Date.parse('2026-05-30T07:30:00+02:00'),
+  fetchWindowEndMs: Date.parse('2026-05-30T13:00:00+02:00'),
   route: [
     {
       kind: 'sbb_dep',
@@ -101,6 +107,10 @@ const RETURN_CONFIG = {
   // Statisches Ende der Rueckreise-Sichtbarkeit. Wird durch Live-Verspaetung
   // der letzten Etappe (SBB-Ankunft Zug) dynamisch verlaengert.
   staticEndMs: Date.parse('2026-06-02T18:30:00+02:00'),
+  // Trenitalia-Fetch nur innerhalb des Rueckreise-Fensters: 10 min vor
+  // Unlock bis TRIP_END_MS (Abschiedskarte uebernimmt danach).
+  fetchWindowStartMs: Date.parse('2026-06-02T13:10:00+02:00'),
+  fetchWindowEndMs: Date.parse('2026-06-02T19:00:00+02:00'),
   // Rueckreise: alle Stops sind ab Unlock-Zeit sichtbar (kein schrittweises Reveal).
   route: [
     {
@@ -136,6 +146,14 @@ const RETURN_CONFIG = {
 
 export function getActiveTripConfig(nowMs) {
   return nowMs >= RETURN_UNLOCK_MS ? RETURN_CONFIG : OUTBOUND_CONFIG
+}
+
+// Prueft ob aktuell ueberhaupt sinnvoll Trenitalia-Daten gezogen werden
+// sollten. Ausserhalb des Trip-Fensters wird der r.jina.ai-Upstream-Call
+// nicht gemacht, die Daten waeren ohnehin nicht sichtbar im UI.
+export function shouldFetchTrenitalia(config, nowMs) {
+  if (!config?.fetchWindowStartMs || !config?.fetchWindowEndMs) return true
+  return nowMs >= config.fetchWindowStartMs && nowMs <= config.fetchWindowEndMs
 }
 
 // Exportierte Configs damit der Debug-Endpoint beide Züge gleichzeitig
@@ -203,9 +221,12 @@ export default {
     const url = new URL(request.url)
     const now = resolveNow(url)
     const config = getActiveTripConfig(now)
+    const trenitaliaFetchActive = shouldFetchTrenitalia(config, now)
     const [sbb, trenitalia] = await Promise.all([
       fetchSbbStatus(config.sbb),
-      fetchTrenitaliaStatus(env, config.trenitalia)
+      trenitaliaFetchActive
+        ? fetchTrenitaliaStatus(env, config.trenitalia)
+        : Promise.resolve(null)
     ])
     const route = buildRoute(config.route, sbb, trenitalia, now)
     const overall = deriveTransferAwareStatus(config, sbb, trenitalia)
@@ -217,7 +238,8 @@ export default {
         ...(overall ?? {}),
         route,
         staticEndIso: new Date(config.staticEndMs).toISOString(),
-        effectiveEndIso
+        effectiveEndIso,
+        trenitaliaFetchActive
       },
       200,
       { 'Cache-Control': 'public, max-age=60' }
@@ -347,12 +369,12 @@ function buildRoute(routeDef, sbb, trenitalia, nowMs) {
 export async function fetchTrenitaliaStatus(env, config) {
   try {
     // 1. cerca treno: gibt uns Origin-Station-ID des Zuges am heutigen Tag.
-    // 15 min Cache, da Tagesliste sich nicht oft aendert und das r.jina.ai
-    // Rate-Limit (20 Crawls/Min/IP anonym) sonst getriggert wird.
+    // 60 min Cache: die Tagesliste eines Zuges aendert sich innerhalb eines
+    // Tages nicht, der Tageswechsel passt nicht in 60 min hinein.
     const cercaUrl = `${VT_PROXY}/cercaNumeroTrenoTrenoAutocomplete/${config.trainNo}`
     const cercaRes = await fetch(cercaUrl, {
       headers: jinaHeaders(env),
-      cf: { cacheTtl: 900, cacheEverything: true }
+      cf: { cacheTtl: 3600, cacheEverything: true }
     })
     if (!cercaRes.ok) return null
     const cercaText = await cercaRes.text()

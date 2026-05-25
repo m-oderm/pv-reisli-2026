@@ -2884,6 +2884,10 @@ function summarizeTravelStatus(data) {
   return [
     { label: 'Aktive Etappe', value: tripMap[data.tripId] ?? data.tripId ?? '—' },
     {
+      label: 'Trenitalia-Fetch',
+      value: data.trenitaliaFetchActive === false ? 'übersprungen (ausserhalb Fetch-Fenster)' : 'aktiv'
+    },
+    {
       label: 'Sichtbarkeit endet',
       value: data.effectiveEndIso
         ? `${new Date(data.effectiveEndIso).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Zurich' })}${data.staticEndIso && data.effectiveEndIso !== data.staticEndIso ? ` (statisch ${new Date(data.staticEndIso).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Zurich' })}, verlängert wegen Verspätung)` : ''}`
@@ -2960,6 +2964,12 @@ function appendTripSection(items, sectionTitle, trip, direction) {
   items.push({ section: sectionTitle })
   if (!trip) {
     items.push({ label: 'Status', value: 'keine Daten' })
+    return
+  }
+  if (trip.skipped) {
+    items.push({ label: 'Zug-Nummer', value: trip.config?.train ?? '—' })
+    items.push({ label: 'Status', value: `übersprungen · ${trip.reason ?? 'inaktiv'}` })
+    items.push({ label: 'Grund', value: 'spart r.jina.ai-Calls ausserhalb des Reise-Fensters. Mit ?now=ISO simulierbar.' })
     return
   }
   const { cerca, andamento, parsed, config } = trip

@@ -15,10 +15,25 @@ import {
   jinaHeaders,
   isRateLimitedBody,
   hmInZurich,
-  isInZurichDepartureWindow
+  isInZurichDepartureWindow,
+  shouldFetchTrenitalia
 } from './travel-status.js'
 
 const TEST_OVERRIDE_TOKEN = 'pegelspitze-bunker-2026'
+
+function resolveNow(url) {
+  if (url.searchParams.get('testKey') !== TEST_OVERRIDE_TOKEN) return Date.now()
+  const override = url.searchParams.get('now')
+  if (!override) return Date.now()
+  const parsed = Date.parse(override)
+  return Number.isNaN(parsed) ? Date.now() : parsed
+}
+
+function fetchWindowReason(config, nowMs) {
+  if (nowMs < config.fetchWindowStartMs) return 'vor Fetch-Fenster (Trenitalia-API wird gespart)'
+  if (nowMs > config.fetchWindowEndMs) return 'nach Fetch-Fenster (Trenitalia-API wird gespart)'
+  return null
+}
 
 export default {
   async fetch(request, env) {
@@ -32,9 +47,25 @@ export default {
       return jsonResponse({ error: 'forbidden' }, 403)
     }
 
+    const now = resolveNow(url)
+    const outboundActive = shouldFetchTrenitalia(OUTBOUND_CONFIG, now)
+    const returnActive = shouldFetchTrenitalia(RETURN_CONFIG, now)
+
     const [outbound, ret] = await Promise.all([
-      probeTrip(OUTBOUND_CONFIG.trenitalia, env),
-      probeTrip(RETURN_CONFIG.trenitalia, env)
+      outboundActive
+        ? probeTrip(OUTBOUND_CONFIG.trenitalia, env)
+        : Promise.resolve({
+            skipped: true,
+            reason: fetchWindowReason(OUTBOUND_CONFIG, now) ?? 'inaktiv',
+            config: trenitaliaConfigSummary(OUTBOUND_CONFIG.trenitalia)
+          }),
+      returnActive
+        ? probeTrip(RETURN_CONFIG.trenitalia, env)
+        : Promise.resolve({
+            skipped: true,
+            reason: fetchWindowReason(RETURN_CONFIG, now) ?? 'inaktiv',
+            config: trenitaliaConfigSummary(RETURN_CONFIG.trenitalia)
+          })
     ])
 
     return jsonResponse({
@@ -43,7 +74,8 @@ export default {
         milanoCentraleId: MILANO_CENTRALE_ID,
         torinoPortaNuovaId: TORINO_PORTA_NUOVA_ID,
         auth: env?.JINA_API_KEY ? 'mit Key' : 'anonym',
-        fetchedAt: new Date().toISOString()
+        fetchedAt: new Date().toISOString(),
+        resolvedNow: new Date(now).toISOString()
       },
       outbound,
       return: ret
@@ -51,14 +83,18 @@ export default {
   }
 }
 
+function trenitaliaConfigSummary(t) {
+  return {
+    train: t.trainNo,
+    depStationId: t.depStationId,
+    arrStationId: t.arrStationId,
+    depHourWindowZurich: t.depHourWindowZurich
+  }
+}
+
 async function probeTrip(trenitaliaConfig, env) {
   const result = {
-    config: {
-      train: trenitaliaConfig.trainNo,
-      depStationId: trenitaliaConfig.depStationId,
-      arrStationId: trenitaliaConfig.arrStationId,
-      depHourWindowZurich: trenitaliaConfig.depHourWindowZurich
-    },
+    config: trenitaliaConfigSummary(trenitaliaConfig),
     cerca: await fetchStep(`${VT_PROXY}/cercaNumeroTrenoTrenoAutocomplete/${trenitaliaConfig.trainNo}`, env),
     andamento: null,
     parsed: null
