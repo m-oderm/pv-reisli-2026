@@ -11,6 +11,7 @@
 import travelConditions from './travel-conditions.js'
 import tripProgram from './trip-program.js'
 import travelStatus from './travel-status.js'
+import debugTrenitalia from './debug-trenitalia.js'
 
 export default {
   async fetch(request, env, ctx) {
@@ -24,6 +25,9 @@ export default {
     }
     if (url.pathname === '/api/travel-status') {
       return travelStatus.fetch(request, env, ctx)
+    }
+    if (url.pathname === '/api/debug-trenitalia') {
+      return debugTrenitalia.fetch(request, env, ctx)
     }
     return env.ASSETS.fetch(request)
   }

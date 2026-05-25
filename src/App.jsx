@@ -135,6 +135,17 @@ function getTestKey() {
 }
 const TEST_KEY = getTestKey()
 
+function getDebugFlag() {
+  if (typeof window === 'undefined') return false
+  try {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('debug') === '1'
+  } catch {
+    return false
+  }
+}
+const DEBUG_MODE = getDebugFlag()
+
 const TRAVEL_DATES = ['2026-05-30', '2026-05-31', '2026-06-01', '2026-06-02']
 
 const FALLBACK_PAYLOAD = {
@@ -2719,6 +2730,144 @@ function ClosedOrPendingDayCard({ day, now, secret }) {
   )
 }
 
+function DebugBlock({ title, status, url, data, error }) {
+  return (
+    <details className="debug-block" open>
+      <summary>
+        <span className="debug-title">{title}</span>
+        <span className={`debug-status ${status === 'ok' ? 'is-ok' : status === 'pending' ? 'is-pending' : 'is-err'}`}>
+          {status === 'ok' ? 'OK' : status === 'pending' ? 'lädt…' : 'Fehler'}
+        </span>
+      </summary>
+      {url && (
+        <div className="debug-url">
+          <span className="debug-url-label">URL:</span>
+          <code>{url}</code>
+        </div>
+      )}
+      {error && <p className="debug-error">{error}</p>}
+      {data !== undefined && (
+        <pre className="debug-json">{typeof data === 'string' ? data : JSON.stringify(data, null, 2)}</pre>
+      )}
+    </details>
+  )
+}
+
+function DebugSection() {
+  const [endpoints, setEndpoints] = useState({})
+  const [reloadCount, setReloadCount] = useState(0)
+
+  const calls = useMemo(() => {
+    const tripUrl = (() => {
+      const p = new URLSearchParams()
+      if (NOW_OVERRIDE_MS) p.set('now', new Date(NOW_OVERRIDE_MS).toISOString())
+      if (TEST_KEY) p.set('testKey', TEST_KEY)
+      const q = p.toString()
+      return q ? `/api/trip-program?${q}` : '/api/trip-program'
+    })()
+    const statusUrl = (() => {
+      const p = new URLSearchParams()
+      if (NOW_OVERRIDE_MS) p.set('now', new Date(NOW_OVERRIDE_MS).toISOString())
+      if (TEST_KEY) p.set('testKey', TEST_KEY)
+      const q = p.toString()
+      return q ? `/api/travel-status?${q}` : '/api/travel-status'
+    })()
+    const debugUrl = `/api/debug-trenitalia?testKey=${encodeURIComponent(TEST_KEY ?? '')}`
+    return [
+      { key: 'tripProgram', title: 'GET /api/trip-program', url: tripUrl },
+      { key: 'travelStatus', title: 'GET /api/travel-status (SBB + Trenitalia gemischt)', url: statusUrl },
+      { key: 'travelConditions', title: 'GET /api/travel-conditions (Wetter)', url: '/api/travel-conditions' },
+      { key: 'debugTrenitalia', title: 'GET /api/debug-trenitalia (Trenitalia roh via r.jina.ai)', url: debugUrl }
+    ]
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    setEndpoints((prev) => {
+      const next = { ...prev }
+      for (const c of calls) next[c.key] = { ...next[c.key], status: 'pending', url: c.url }
+      return next
+    })
+    Promise.all(calls.map(async (c) => {
+      const startedAt = Date.now()
+      try {
+        const res = await fetch(c.url, { cache: 'no-store' })
+        const contentType = res.headers.get('content-type') || ''
+        const text = await res.text()
+        let parsed
+        if (contentType.includes('application/json')) {
+          try {
+            parsed = JSON.parse(text)
+          } catch {
+            parsed = text
+          }
+        } else {
+          parsed = text
+        }
+        if (active) {
+          setEndpoints((prev) => ({
+            ...prev,
+            [c.key]: {
+              status: res.ok ? 'ok' : 'err',
+              url: c.url,
+              httpStatus: res.status,
+              durationMs: Date.now() - startedAt,
+              data: parsed,
+              error: res.ok ? null : `HTTP ${res.status}`
+            }
+          }))
+        }
+      } catch (e) {
+        if (active) {
+          setEndpoints((prev) => ({
+            ...prev,
+            [c.key]: {
+              status: 'err',
+              url: c.url,
+              durationMs: Date.now() - startedAt,
+              data: null,
+              error: String(e?.message || e)
+            }
+          }))
+        }
+      }
+    }))
+    return () => { active = false }
+  }, [calls, reloadCount])
+
+  return (
+    <section id="debug" className="section debug-section">
+      <SectionTitle icon={FileText} kicker="API-Debug · nur fuer Tests" title="API-Status" />
+      <Card className="card-cream">
+        <div className="debug-toolbar">
+          <span className="debug-meta">
+            testKey: {TEST_KEY ? '✓ gesetzt' : '— fehlt'} · now-Override: {NOW_OVERRIDE_MS ? new Date(NOW_OVERRIDE_MS).toISOString() : '—'}
+          </span>
+          <button type="button" className="weather-refresh" onClick={() => setReloadCount((c) => c + 1)} aria-label="Neu laden">
+            <RefreshCw size={18} />
+          </button>
+        </div>
+        {calls.map((c) => {
+          const e = endpoints[c.key] || { status: 'pending', url: c.url }
+          return (
+            <DebugBlock
+              key={c.key}
+              title={c.title}
+              status={e.status}
+              url={e.url}
+              data={e.data}
+              error={e.error}
+            />
+          )
+        })}
+        <p className="debug-note">
+          Diese Seite ist nur ueber den URL-Parameter <code>?debug=1</code> sichtbar. Fuer Trenitalia-Live-Daten muss zusaetzlich <code>testKey</code> gesetzt sein.
+        </p>
+      </Card>
+    </section>
+  )
+}
+
 function Abschied() {
   const secret = useSecretMode()
   const facts = [
@@ -2853,18 +3002,20 @@ export default function App() {
   const tripStarted = now >= TRAVEL_QUEST_START_MS
   const tripEnded = now >= TRIP_END_MS
   const showTagesbriefing = now >= SATURDAY_MIDNIGHT_MS && !tripEnded
-  const navItems = tripEnded ? [] : getNavItems(tripStarted)
+  const navItems = (DEBUG_MODE || tripEnded) ? [] : getNavItems(tripStarted)
 
   return (
     <MotionConfig reducedMotion="user">
       <SecretModeContext.Provider value={secretMode}>
         <ToastContext.Provider value={showToast}>
-          <div className={`app${secretMode ? ' secret-mode' : ''}${tripEnded ? ' trip-ended' : ''}`}>
+          <div className={`app${secretMode ? ' secret-mode' : ''}${tripEnded ? ' trip-ended' : ''}${DEBUG_MODE ? ' debug-mode' : ''}`}>
             <Nav onToggleSecret={toggleSecretMode} navItems={navItems} />
             <main>
-              <Hero />
+              {!DEBUG_MODE && <Hero />}
               <div className="container">
-                {tripEnded ? (
+                {DEBUG_MODE ? (
+                  <DebugSection />
+                ) : tripEnded ? (
                   <Abschied />
                 ) : (
                   <>

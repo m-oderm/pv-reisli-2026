@@ -2632,6 +2632,105 @@ main { flex: 1; }
   .tb-footer .tb-copy-btn { width: 100%; justify-content: center; }
 }
 
+/* ---------- API-Debug ---------- */
+
+.debug-section { padding-top: 24px; }
+.debug-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed rgba(184, 138, 59, 0.32);
+}
+.debug-meta {
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ink-soft);
+}
+
+.debug-block {
+  margin: 12px 0;
+  border-radius: 10px;
+  border: 1px solid rgba(184, 138, 59, 0.28);
+  background: rgba(184, 138, 59, 0.04);
+  overflow: hidden;
+}
+.debug-block > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  color: var(--ink);
+}
+.debug-title { flex: 1; }
+.debug-status {
+  font-size: 10px;
+  letter-spacing: var(--track-tight);
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+.debug-status.is-ok { background: rgba(22, 61, 52, 0.18); color: var(--green); }
+.debug-status.is-pending { background: rgba(11, 34, 61, 0.1); color: var(--ink-soft); }
+.debug-status.is-err { background: rgba(201, 111, 43, 0.2); color: var(--orange); }
+
+.debug-url {
+  padding: 0 14px 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.debug-url code {
+  background: rgba(11, 34, 61, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+.debug-url-label { font-weight: 700; }
+.debug-error {
+  margin: 0 14px 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--orange);
+}
+.debug-json {
+  margin: 0;
+  padding: 12px 14px;
+  background: #0b1626;
+  color: #e6e6e6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  max-height: 460px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-top: 1px solid rgba(184, 138, 59, 0.2);
+}
+.debug-note {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.debug-note code {
+  background: rgba(11, 34, 61, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
 /* ---------- Abschied (nach Reise-Ende) ---------- */
 
 .abschied-section {
