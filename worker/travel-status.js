@@ -232,7 +232,7 @@ export default {
     const now = resolveNow(url)
     const config = getActiveTripConfig(now)
     const trenitaliaFetchActive = shouldFetchTrenitalia(config, now)
-    const [sbb, trenitalia, sbbLegOrigin] = await Promise.all([
+    const [sbbRaw, trenitalia, sbbLegOrigin] = await Promise.all([
       fetchSbbStatus(config.sbb),
       trenitaliaFetchActive
         ? fetchTrenitaliaStatus(env, config.trenitalia)
@@ -241,7 +241,10 @@ export default {
         ? fetchSbbLegOriginPlatform(env, config.sbbLegMilanoLookup)
         : Promise.resolve(null)
     ])
-    const route = buildRoute(config.route, sbb, trenitalia, now, sbbLegOrigin)
+    // Bei Rueckreise SBB-Sicht mit Trenitalia-Sicht verschmelzen, weil
+    // SBB OpenData fuer auslaendische Abfahrten nicht zuverlaessig ist.
+    const sbb = mergeSbbWithLegOrigin(sbbRaw, sbbLegOrigin)
+    const route = buildRoute(config.route, sbb, trenitalia, now)
     const overall = deriveTransferAwareStatus(config, sbb, trenitalia)
     const effectiveEndIso = computeEffectiveEndIso(config, sbb, trenitalia)
     return jsonResponse(
@@ -343,13 +346,10 @@ function deriveTransferAwareStatus(config, sbb, trenitalia) {
 
 // --- Route ---
 
-function buildRoute(routeDef, sbb, trenitalia, nowMs, sbbLegOrigin) {
+function buildRoute(routeDef, sbb, trenitalia, nowMs) {
   const liveDepTime = sbb?.realtimeDeparture ? hmInZurich(sbb.realtimeDeparture) : null
   const liveArrTime = sbb?.realtimeArrival ? hmInZurich(sbb.realtimeArrival) : null
-  const sbbPlatform = sbb?.platform || null
-  // Bei Rueckreise hat das via ViaggiaTreno gemeldete Gleis Vorrang —
-  // SBB OpenData hat dort meist kein Gleis fuer auslaendische Abfahrten.
-  const sbbLegPlatform = sbbLegOrigin?.platform || null
+  const platform = sbb?.platform || null
   return routeDef
     .filter((stop) => Date.parse(stop.revealAt) <= nowMs)
     .map((stop) => {
@@ -357,7 +357,6 @@ function buildRoute(routeDef, sbb, trenitalia, nowMs, sbbLegOrigin) {
       delete out.revealAt
       if (stop.kind === 'sbb_dep') {
         if (liveDepTime) out.time = liveDepTime
-        const platform = sbbLegPlatform || sbbPlatform
         if (platform) out.platform = platform
         if (typeof sbb?.delayMinutes === 'number' && sbb.delayMinutes > 0) {
           out.delayMinutes = sbb.delayMinutes
@@ -528,9 +527,41 @@ export async function fetchSbbLegOriginPlatform(env, lookup) {
       origin.binarioProgrammatoPartenzaDescrizione ??
       null
     const delay = typeof origin.ritardoPartenza === 'number' ? origin.ritardoPartenza : 0
-    return { platform, delayMinutes: delay, trainName: andJson?.compNumeroTreno ?? null }
+    const programmataMs = typeof origin.partenza_teorica === 'number' ? origin.partenza_teorica : null
+    const effectiveMs = typeof origin.partenzaReale === 'number' ? origin.partenzaReale : programmataMs
+    return {
+      platform,
+      delayMinutes: delay,
+      plannedDeparture: programmataMs ? new Date(programmataMs).toISOString() : null,
+      realtimeDeparture: effectiveMs ? new Date(effectiveMs).toISOString() : null,
+      trainName: andJson?.compNumeroTreno ?? null
+    }
   } catch {
     return null
+  }
+}
+
+/**
+ * Verschmilzt die SBB-Sicht auf die SBB-Etappe mit der Trenitalia-Sicht.
+ * Fuer auslaendische Abfahrten (Rueckreise: EC 20 in Mailand) ist
+ * ViaggiaTreno deutlich zuverlaessiger als SBB OpenData. Wir nehmen den
+ * groesseren Verspaetungswert und bevorzugen Trenitalias Gleis und Zeiten.
+ */
+function mergeSbbWithLegOrigin(sbb, sbbLegOrigin) {
+  if (!sbbLegOrigin || !sbb) return sbb
+  const sbbDelay = typeof sbb.delayMinutes === 'number' ? sbb.delayMinutes : 0
+  const legDelay = typeof sbbLegOrigin.delayMinutes === 'number' ? sbbLegOrigin.delayMinutes : 0
+  const mergedDelay = Math.max(sbbDelay, legDelay)
+  const mergedStatus = sbb.status === 'unknown'
+    ? 'unknown'
+    : (mergedDelay > 0 ? 'delayed' : 'on_time')
+  return {
+    ...sbb,
+    delayMinutes: mergedDelay,
+    platform: sbbLegOrigin.platform ?? sbb.platform ?? null,
+    plannedDeparture: sbbLegOrigin.plannedDeparture ?? sbb.plannedDeparture ?? null,
+    realtimeDeparture: sbbLegOrigin.realtimeDeparture ?? sbb.realtimeDeparture ?? null,
+    status: mergedStatus
   }
 }
 

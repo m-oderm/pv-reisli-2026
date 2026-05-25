@@ -132,6 +132,7 @@ async function probeSbbLeg(lookup, env) {
     const fermate = Array.isArray(json?.fermate) ? json.fermate : []
     const origin = fermate.find((f) => f.id === lookup.originStationId) ?? null
     const plannedDepartureMs = typeof origin?.partenza_teorica === 'number' ? origin.partenza_teorica : null
+    const effectiveDepartureMs = typeof origin?.partenzaReale === 'number' ? origin.partenzaReale : plannedDepartureMs
     const scheduleOk = isInZurichDepartureWindow(plannedDepartureMs, lookup.depHourWindowZurich)
     result.parsed.fermateCount = fermate.length
     result.parsed.originStop = origin
@@ -140,6 +141,8 @@ async function probeSbbLeg(lookup, env) {
     result.parsed.scheduleCheck = {
       ok: scheduleOk,
       plannedDeparture: hmInZurich(plannedDepartureMs),
+      effectiveDeparture: hmInZurich(effectiveDepartureMs),
+      delayMinutes: typeof origin?.ritardoPartenza === 'number' ? origin.ritardoPartenza : 0,
       windowZurich: `${lookup.depHourWindowZurich.min}:00–${lookup.depHourWindowZurich.max}:00`
     }
     result.parsed.platform =

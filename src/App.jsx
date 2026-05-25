@@ -2921,9 +2921,10 @@ function summarizeTravelStatus(data) {
       value: typeof data.trenitaliaDelayMinutes === 'number' ? `${data.trenitaliaDelayMinutes} Min` : '—'
     },
     { label: 'Umstieg in Mailand', value: transferValue },
-    { label: 'Gleis Bahnhof Zug (SBB)', value: data.platform ?? '—' },
+    { label: 'Abfahrtsgleis (Startbahnhof)', value: data.platform ?? '—' },
     { label: 'Geplante Abfahrt', value: data.plannedDeparture ? new Date(data.plannedDeparture).toLocaleString('de-CH') : '—' },
-    { label: 'Live-Ankunft Mailand', value: data.realtimeArrival ? new Date(data.realtimeArrival).toLocaleString('de-CH') : 'noch keine Echtzeitdaten' },
+    { label: 'Live-Abfahrt', value: data.realtimeDeparture ? new Date(data.realtimeDeparture).toLocaleString('de-CH') : 'noch keine Echtzeitdaten' },
+    { label: 'Live-Ankunft (Endziel)', value: data.realtimeArrival ? new Date(data.realtimeArrival).toLocaleString('de-CH') : 'noch keine Echtzeitdaten' },
     { label: 'Route-Stops sichtbar', value: `${route.length} von 4` },
     {
       label: 'Trenitalia-Daten im Route-Stop',
@@ -3002,6 +3003,12 @@ function appendSbbLegSection(items, sectionTitle, leg) {
   if (parsed?.destination) items.push({ label: 'Endziel laut Trenitalia', value: parsed.destination })
   if (parsed?.scheduleCheck) {
     items.push({ label: 'Geplante Mailand-Abfahrt', value: parsed.scheduleCheck.plannedDeparture ?? '—' })
+    items.push({
+      label: 'Effektive Mailand-Abfahrt (Live)',
+      value: parsed.scheduleCheck.effectiveDeparture
+        ? `${parsed.scheduleCheck.effectiveDeparture}${typeof parsed.scheduleCheck.delayMinutes === 'number' && parsed.scheduleCheck.delayMinutes > 0 ? ` (+${parsed.scheduleCheck.delayMinutes} Min)` : ''}`
+        : '—'
+    })
     items.push({
       label: `Fahrplan-Fenster (${parsed.scheduleCheck.windowZurich ?? '—'} Zürich)`,
       value: parsed.scheduleCheck.ok ? 'passt' : 'AUSSERHALB'
