@@ -776,11 +776,22 @@ function Ribbon({ children }) {
   )
 }
 
-function getHeroPhase(nowMs) {
+function getHeroPhase(nowMs, travelStatus) {
   if (nowMs < TRAVEL_QUEST_START_MS) return 'pre'
-  if (nowMs < SATURDAY_UNLOCK_MS) return 'anreise'
   if (nowMs >= TRIP_END_MS) return 'finale'
-  if (nowMs >= RUECKREISE_UNLOCK_MS && nowMs < RUECKREISE_END_MS) return 'rueckreise'
+
+  // Statische Endzeiten werden durch Live-Verspaetung der jeweils letzten
+  // Etappe verlaengert (Worker liefert effectiveEndIso). Faellt der Wert
+  // weg (Loading-State, oder Worker meldet falschen Trip), greifen die
+  // statischen Defaults SATURDAY_UNLOCK_MS und RUECKREISE_END_MS.
+  const liveEndMs = travelStatus?.effectiveEndIso ? Date.parse(travelStatus.effectiveEndIso) : NaN
+  const anreiseEnd = travelStatus?.tripId === 'outbound' && !Number.isNaN(liveEndMs) ? liveEndMs : SATURDAY_UNLOCK_MS
+  const rueckreiseEnd = travelStatus?.tripId === 'return' && !Number.isNaN(liveEndMs)
+    ? Math.min(liveEndMs, TRIP_END_MS)
+    : RUECKREISE_END_MS
+
+  if (nowMs < anreiseEnd) return 'anreise'
+  if (nowMs >= RUECKREISE_UNLOCK_MS && nowMs < rueckreiseEnd) return 'rueckreise'
   return 'fokus'
 }
 
@@ -949,12 +960,14 @@ function Hero() {
     const id = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(id)
   }, [])
-  const phase = getHeroPhase(now)
 
-  // Hooks immer aufrufen (Hook-Rules), Daten je Phase nutzen
+  // Hooks immer aufrufen (Hook-Rules), Daten je Phase nutzen.
+  // travelStatus muss vor getHeroPhase liegen, da das dynamische Phasen-
+  // Ende (effectiveEndIso) aus den Live-Daten kommt.
   const travelStatus = useTravelStatus()
   const { data: program } = useTripProgram()
   const { data: weather } = useTravelConditions()
+  const phase = getHeroPhase(now, travelStatus)
 
   const content = useMemo(() => {
     if (phase === 'anreise') return getAnreiseHeroContent(travelStatus, secret)
@@ -2402,7 +2415,7 @@ function Tagesbriefing({ tripStarted, now }) {
   const { data: weather } = useTravelConditions()
   const secret = useSecretMode()
   const [pinnedDayId, setPinnedDayId] = useState(null)
-  const phase = getHeroPhase(now)
+  const phase = getHeroPhase(now, travelStatus)
 
   const kicker = secret ? 'AKTIVER TAGESBEFEHL' : 'Heute im Fokus'
   const title = secret ? 'Einsatzverlauf' : 'Tagesbriefing'
@@ -2870,6 +2883,12 @@ function summarizeTravelStatus(data) {
     : '—'
   return [
     { label: 'Aktive Etappe', value: tripMap[data.tripId] ?? data.tripId ?? '—' },
+    {
+      label: 'Sichtbarkeit endet',
+      value: data.effectiveEndIso
+        ? `${new Date(data.effectiveEndIso).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Zurich' })}${data.staticEndIso && data.effectiveEndIso !== data.staticEndIso ? ` (statisch ${new Date(data.staticEndIso).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Zurich' })}, verlängert wegen Verspätung)` : ''}`
+        : '—'
+    },
     { label: 'Reise-Lage (kombiniert)', value: map[data.status] ?? data.status ?? '—' },
     {
       label: 'SBB-Verspätung',

@@ -51,6 +51,9 @@ const OUTBOUND_CONFIG = {
   // SBB ist die erste Etappe und kann durch Verspaetung den Umstieg vermasseln.
   firstLeg: 'sbb',
   connectionLabel: 'Anschluss-Trenitalia 11:10',
+  // Statisches Ende der Anreise-Sichtbarkeit. Wird durch Live-Verspaetung
+  // der letzten Etappe (Trenitalia-Ankunft Turin) dynamisch verlaengert.
+  staticEndMs: Date.parse('2026-05-30T12:20:00+02:00'),
   route: [
     {
       kind: 'sbb_dep',
@@ -95,6 +98,9 @@ const RETURN_CONFIG = {
   // Trenitalia ist die erste Etappe und kann durch Verspaetung den Umstieg vermasseln.
   firstLeg: 'trenitalia',
   connectionLabel: 'Anschluss-EC 20 15:10',
+  // Statisches Ende der Rueckreise-Sichtbarkeit. Wird durch Live-Verspaetung
+  // der letzten Etappe (SBB-Ankunft Zug) dynamisch verlaengert.
+  staticEndMs: Date.parse('2026-06-02T18:30:00+02:00'),
   // Rueckreise: alle Stops sind ab Unlock-Zeit sichtbar (kein schrittweises Reveal).
   route: [
     {
@@ -203,12 +209,39 @@ export default {
     ])
     const route = buildRoute(config.route, sbb, trenitalia, now)
     const overall = deriveTransferAwareStatus(config, sbb, trenitalia)
+    const effectiveEndIso = computeEffectiveEndIso(config, sbb, trenitalia)
     return jsonResponse(
-      { tripId: config.id, ...sbb, ...(overall ?? {}), route },
+      {
+        tripId: config.id,
+        ...sbb,
+        ...(overall ?? {}),
+        route,
+        staticEndIso: new Date(config.staticEndMs).toISOString(),
+        effectiveEndIso
+      },
       200,
       { 'Cache-Control': 'public, max-age=60' }
     )
   }
+}
+
+/**
+ * Verlaengert das statische Ende der Trip-Sichtbarkeit um die Verspaetung
+ * der LETZTEN Etappe (also die, mit der die Reise endet). Outbound endet
+ * mit Trenitalia in Turin, Return endet mit SBB in Zug.
+ *
+ * Ist der Zug puenktlich oder frueher, bleibt das statische Ende. So bleibt
+ * die User-Erwartung unveraendert wenn alles glatt laeuft.
+ */
+function computeEffectiveEndIso(config, sbb, trenitalia) {
+  let lastLegDelayMin = 0
+  if (config.firstLeg === 'sbb') {
+    lastLegDelayMin = typeof trenitalia?.arr?.delayMinutes === 'number' ? trenitalia.arr.delayMinutes : 0
+  } else {
+    lastLegDelayMin = typeof sbb?.delayMinutes === 'number' ? sbb.delayMinutes : 0
+  }
+  const effectiveMs = config.staticEndMs + Math.max(0, lastLegDelayMin) * 60000
+  return new Date(effectiveMs).toISOString()
 }
 
 // --- Status-Komposition ---
