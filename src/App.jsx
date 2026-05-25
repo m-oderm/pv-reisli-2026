@@ -2817,18 +2817,38 @@ function summarizeTravelConditions(data) {
   ]
 }
 
+function describeStepStatus(step) {
+  if (!step) return '—'
+  if (step.error) return `Verbindungsfehler: ${step.error}`
+  const rateLimited = typeof step.rawTextPreview === 'string' && /"code":\s*429|RateLimitTriggered|Per IP rate limit/i.test(step.rawTextPreview)
+  if (rateLimited) {
+    return `überlastet (HTTP ${step.status}, r.jina.ai-Rate-Limit erreicht)`
+  }
+  if (step.ok) {
+    return `antwortet (HTTP ${step.status}, ${step.durationMs} ms)`
+  }
+  return `Fehler (HTTP ${step.status}, ${step.durationMs} ms)`
+}
+
 function summarizeDebugTrenitalia(data) {
   if (!data || typeof data !== 'object') return null
   const cerca = data.cerca
   const andamento = data.andamento
   const parsed = data.parsed
   const items = []
-  items.push({ label: 'Proxy', value: data.meta?.proxy ?? '—' })
+  items.push({
+    label: 'Vermittler (HTTPS-Proxy)',
+    value: 'r.jina.ai'
+  })
+  items.push({
+    label: 'Eigentliche Quelle',
+    value: 'viaggiatreno.it (italienische Bahn, nur HTTP)'
+  })
   items.push({ label: 'Zug-Nummer', value: data.meta?.train ?? '—' })
   if (cerca) {
     items.push({
-      label: 'Zug-Suche (cerca)',
-      value: cerca.ok ? `OK (HTTP ${cerca.status}, ${cerca.durationMs} ms)` : `Fehler: ${cerca.error ?? cerca.status}`
+      label: 'Zug-Suche (Schritt 1)',
+      value: describeStepStatus(cerca)
     })
   }
   if (parsed?.allIds) {
@@ -2846,8 +2866,8 @@ function summarizeDebugTrenitalia(data) {
   }
   if (andamento) {
     items.push({
-      label: 'Detail-Abfrage (andamento)',
-      value: andamento.ok ? `OK (HTTP ${andamento.status}, ${andamento.durationMs} ms)` : `Fehler: ${andamento.error ?? andamento.status}`
+      label: 'Detail-Abfrage (Schritt 2)',
+      value: describeStepStatus(andamento)
     })
   }
   if (parsed?.fermateCount != null) {
@@ -2887,7 +2907,8 @@ function detectRateLimit(data) {
 }
 
 function DebugBlock({ title, description, status, url, httpStatus, durationMs, data, error, highlights }) {
-  const friendlyStatus = status === 'ok' && detectRateLimit(data) ? 'rate-limited' : status
+  const limited = detectRateLimit(data)
+  const friendlyStatus = limited ? 'rate-limited' : status
   return (
     <article className="debug-block">
       <header className="debug-block-head">
@@ -2907,10 +2928,12 @@ function DebugBlock({ title, description, status, url, httpStatus, durationMs, d
           <code>{url}</code>
         </div>
       )}
-      {error && <p className="debug-error">{error}</p>}
-      {friendlyStatus === 'rate-limited' && (
+      {error && !limited && <p className="debug-error">{error}</p>}
+      {limited && (
         <p className="debug-warning">
-          Der externe Proxy (r.jina.ai) hat ein Rate-Limit ausgelöst. Die App fällt automatisch auf statische Werte zurück. Nach ein paar Minuten wieder versuchen.
+          Der HTTPS-Vermittler <strong>r.jina.ai</strong> erlaubt nur 20 Aufrufe pro Minute pro IP und ist gerade überlastet.
+          Das ist <em>nicht</em> ein Fehler von viaggiatreno.it. Die App fällt automatisch auf statische Werte zurück.
+          Nach 1 bis 2 Minuten erneut probieren.
         </p>
       )}
       <HighlightList items={highlights} />
