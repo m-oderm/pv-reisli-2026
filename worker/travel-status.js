@@ -148,15 +148,22 @@ function buildRoute(status, trenitalia, nowMs) {
  * zu holen. Liefert { dep, arr } mit time/platform/delayMinutes, oder null
  * wenn unverfuegbar. Best effort, kein Block bei Fehler.
  */
+function isRateLimitedBody(text) {
+  return typeof text === 'string' && /"code":\s*429|RateLimitTriggered|Per IP rate limit/i.test(text)
+}
+
 async function fetchTrenitaliaStatus(nowMs) {
   try {
-    // 1. cerca treno: gibt uns Origin-Station-ID des Zuges am heutigen Tag
+    // 1. cerca treno: gibt uns Origin-Station-ID des Zuges am heutigen Tag.
+    // 15 min Cache, da Tagesliste sich nicht oft aendert und r.jina.ai
+    // ein striktes Rate-Limit (20 Crawls/Min/IP) hat.
     const cercaUrl = `${VT_PROXY}/cercaNumeroTrenoTrenoAutocomplete/${TRENITALIA_TRAIN}`
     const cercaRes = await fetch(cercaUrl, {
-      cf: { cacheTtl: 300, cacheEverything: true }
+      cf: { cacheTtl: 900, cacheEverything: true }
     })
     if (!cercaRes.ok) return null
     const cercaText = await cercaRes.text()
+    if (isRateLimitedBody(cercaText)) return null
     // r.jina.ai-Wrap: nach "Markdown Content:" kommt der eigentliche Inhalt
     const body = cercaText.split('Markdown Content:')[1]?.trim() ?? ''
     // Format: "9612 - BATTIPAGLIA - 25/05/26|9612-S09823-1779660000000\n..."
@@ -177,13 +184,16 @@ async function fetchTrenitaliaStatus(nowMs) {
     }
     if (!pick) return null
 
-    // 2. andamentoTreno: holt den Live-Lauf des Zuges
+    // 2. andamentoTreno: holt den Live-Lauf des Zuges.
+    // 3 min Cache: Echtzeit-Daten bleiben relativ frisch, aber das
+    // Rate-Limit des Proxy wird nicht ueberreizt.
     const andUrl = `${VT_PROXY}/andamentoTreno/${pick.stationId}/${pick.trainNo}/${pick.epoch}`
     const andRes = await fetch(andUrl, {
-      cf: { cacheTtl: 60, cacheEverything: true }
+      cf: { cacheTtl: 180, cacheEverything: true }
     })
     if (!andRes.ok) return null
     const andText = await andRes.text()
+    if (isRateLimitedBody(andText)) return null
     const andBody = andText.split('Markdown Content:')[1]?.trim() ?? ''
     let andJson
     try {
