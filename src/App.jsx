@@ -2899,6 +2899,12 @@ function summarizeTravelStatus(data) {
       label: 'Trenitalia-Fetch',
       value: data.trenitaliaFetchActive === false ? 'übersprungen (ausserhalb Fetch-Fenster)' : 'aktiv'
     },
+    ...(data.sbbLegOrigin
+      ? [{
+          label: 'EC 20 Mailand-Gleis (via Trenitalia)',
+          value: `${data.sbbLegOrigin.platform ?? '—'}${typeof data.sbbLegOrigin.delayMinutes === 'number' && data.sbbLegOrigin.delayMinutes > 0 ? ` · +${data.sbbLegOrigin.delayMinutes} Min Trenitalia-Sicht` : ''}`
+        }]
+      : []),
     {
       label: 'Sichtbarkeit endet',
       value: data.effectiveEndIso
@@ -2968,8 +2974,51 @@ function summarizeDebugTrenitalia(data) {
 
   appendTripSection(items, 'Anreise · Trenitalia 9612 (Mailand → Turin)', data.outbound, 'mailand_torino')
   appendTripSection(items, 'Rückreise · Trenitalia 9641 (Turin → Mailand)', data.return, 'torino_mailand')
+  appendSbbLegSection(items, 'Rückreise · EC 20 Mailand-Abfahrt (via ViaggiaTreno)', data.returnSbbLeg)
 
   return items
+}
+
+function appendSbbLegSection(items, sectionTitle, leg) {
+  items.push({ section: sectionTitle })
+  if (!leg) {
+    items.push({ label: 'Status', value: 'keine Daten' })
+    return
+  }
+  if (leg.skipped) {
+    items.push({ label: 'Zug-Nummer', value: leg.config?.train ?? '—' })
+    items.push({ label: 'Status', value: `übersprungen · ${leg.reason ?? 'inaktiv'}` })
+    return
+  }
+  const { cerca, andamento, parsed, config } = leg
+  if (config?.train) items.push({ label: 'Zug-Nummer', value: config.train })
+  if (cerca) items.push({ label: 'Zug-Suche (Schritt 1)', value: describeStepStatus(cerca) })
+  if (parsed?.pickedForAndamento) {
+    const p = parsed.pickedForAndamento
+    items.push({ label: 'Ausgewählter Eintrag', value: `${p.stationId} · Zug ${p.trainNo}` })
+  }
+  if (andamento) items.push({ label: 'Detail-Abfrage (Schritt 2)', value: describeStepStatus(andamento) })
+  if (parsed?.trainName) items.push({ label: 'Zug-Name laut Trenitalia', value: parsed.trainName })
+  if (parsed?.destination) items.push({ label: 'Endziel laut Trenitalia', value: parsed.destination })
+  if (parsed?.scheduleCheck) {
+    items.push({ label: 'Geplante Mailand-Abfahrt', value: parsed.scheduleCheck.plannedDeparture ?? '—' })
+    items.push({
+      label: `Fahrplan-Fenster (${parsed.scheduleCheck.windowZurich ?? '—'} Zürich)`,
+      value: parsed.scheduleCheck.ok ? 'passt' : 'AUSSERHALB'
+    })
+  }
+  if (parsed?.platform !== undefined) {
+    items.push({ label: 'Mailand-Gleis', value: parsed.platform ?? '—' })
+  }
+  if (typeof parsed?.platformAccepted === 'boolean') {
+    items.push({
+      label: 'Gleis wird übernommen',
+      value: parsed.platformAccepted ? 'ja' : 'nein'
+    })
+  }
+  if (parsed?.parseError) {
+    items.push({ label: 'Parse-Fehler', value: parsed.parseError })
+  }
 }
 
 function appendTripSection(items, sectionTitle, trip, direction) {

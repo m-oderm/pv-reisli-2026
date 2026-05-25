@@ -51,7 +51,7 @@ export default {
     const outboundActive = shouldFetchTrenitalia(OUTBOUND_CONFIG, now)
     const returnActive = shouldFetchTrenitalia(RETURN_CONFIG, now)
 
-    const [outbound, ret] = await Promise.all([
+    const [outbound, ret, returnSbbLeg] = await Promise.all([
       outboundActive
         ? probeTrip(OUTBOUND_CONFIG.trenitalia, env)
         : Promise.resolve({
@@ -65,6 +65,13 @@ export default {
             skipped: true,
             reason: fetchWindowReason(RETURN_CONFIG, now) ?? 'inaktiv',
             config: trenitaliaConfigSummary(RETURN_CONFIG.trenitalia)
+          }),
+      returnActive && RETURN_CONFIG.sbbLegMilanoLookup
+        ? probeSbbLeg(RETURN_CONFIG.sbbLegMilanoLookup, env)
+        : Promise.resolve({
+            skipped: true,
+            reason: fetchWindowReason(RETURN_CONFIG, now) ?? 'inaktiv',
+            config: sbbLegConfigSummary(RETURN_CONFIG.sbbLegMilanoLookup)
           })
     ])
 
@@ -78,9 +85,73 @@ export default {
         resolvedNow: new Date(now).toISOString()
       },
       outbound,
-      return: ret
+      return: ret,
+      returnSbbLeg
     }, 200, { 'Cache-Control': 'no-store' })
   }
+}
+
+function sbbLegConfigSummary(lookup) {
+  if (!lookup) return null
+  return {
+    train: lookup.trainNo,
+    label: lookup.label,
+    originStationId: lookup.originStationId,
+    depHourWindowZurich: lookup.depHourWindowZurich
+  }
+}
+
+async function probeSbbLeg(lookup, env) {
+  const result = {
+    config: sbbLegConfigSummary(lookup),
+    cerca: await fetchStep(`${VT_PROXY}/cercaNumeroTrenoTrenoAutocomplete/${lookup.trainNo}`, env),
+    andamento: null,
+    parsed: null
+  }
+
+  if (!result.cerca?.ok || !result.cerca?.markdown) return result
+
+  const lines = result.cerca.markdown.split('\n').map((l) => l.trim()).filter(Boolean)
+  const ids = lines
+    .map((l) => l.split('|')[1])
+    .filter(Boolean)
+    .map((tuple) => {
+      const parts = tuple.split('-')
+      return { trainNo: parts[0], stationId: parts[1], epoch: parts[2] }
+    })
+  const pick = ids.find((i) => i.stationId === lookup.originStationId) || null
+  result.parsed = { allIds: ids, pickedForAndamento: pick }
+  if (!pick) return result
+
+  const andUrl = `${VT_PROXY}/andamentoTreno/${pick.stationId}/${pick.trainNo}/${pick.epoch}`
+  result.andamento = await fetchStep(andUrl, env)
+  if (!result.andamento?.ok || !result.andamento.markdown) return result
+
+  try {
+    const json = JSON.parse(result.andamento.markdown)
+    const fermate = Array.isArray(json?.fermate) ? json.fermate : []
+    const origin = fermate.find((f) => f.id === lookup.originStationId) ?? null
+    const plannedDepartureMs = typeof origin?.partenza_teorica === 'number' ? origin.partenza_teorica : null
+    const scheduleOk = isInZurichDepartureWindow(plannedDepartureMs, lookup.depHourWindowZurich)
+    result.parsed.fermateCount = fermate.length
+    result.parsed.originStop = origin
+    result.parsed.trainName = json?.compNumeroTreno ?? null
+    result.parsed.destination = json?.destinazioneEstera ?? json?.destinazione ?? null
+    result.parsed.scheduleCheck = {
+      ok: scheduleOk,
+      plannedDeparture: hmInZurich(plannedDepartureMs),
+      windowZurich: `${lookup.depHourWindowZurich.min}:00–${lookup.depHourWindowZurich.max}:00`
+    }
+    result.parsed.platform =
+      origin?.binarioEffettivoPartenzaDescrizione ??
+      origin?.binarioProgrammatoPartenzaDescrizione ??
+      null
+    result.parsed.platformAccepted = !!result.parsed.platform && scheduleOk
+  } catch (e) {
+    result.parsed.parseError = String(e?.message || e)
+  }
+
+  return result
 }
 
 function trenitaliaConfigSummary(t) {

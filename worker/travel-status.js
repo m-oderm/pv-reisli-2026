@@ -111,6 +111,16 @@ const RETURN_CONFIG = {
   // Unlock bis TRIP_END_MS (Abschiedskarte uebernimmt danach).
   fetchWindowStartMs: Date.parse('2026-06-02T13:10:00+02:00'),
   fetchWindowEndMs: Date.parse('2026-06-02T19:00:00+02:00'),
+  // Zusatz: ViaggiaTreno kennt den SBB-EuroCity 20 unter Nummer "20" und
+  // liefert das Abfahrtsgleis in Mailand. SBB OpenData hat das fuer
+  // auslaendische Abfahrtsbahnhoefe meist nicht. Wir nutzen dieselbe
+  // Proxy-Pipeline und injizieren das Gleis in den sbb_dep-Route-Stop.
+  sbbLegMilanoLookup: {
+    trainNo: '20',
+    originStationId: MILANO_CENTRALE_ID,
+    depHourWindowZurich: { min: 14, max: 16 },
+    label: 'EC 20'
+  },
   // Rueckreise: alle Stops sind ab Unlock-Zeit sichtbar (kein schrittweises Reveal).
   route: [
     {
@@ -222,13 +232,16 @@ export default {
     const now = resolveNow(url)
     const config = getActiveTripConfig(now)
     const trenitaliaFetchActive = shouldFetchTrenitalia(config, now)
-    const [sbb, trenitalia] = await Promise.all([
+    const [sbb, trenitalia, sbbLegOrigin] = await Promise.all([
       fetchSbbStatus(config.sbb),
       trenitaliaFetchActive
         ? fetchTrenitaliaStatus(env, config.trenitalia)
+        : Promise.resolve(null),
+      trenitaliaFetchActive && config.sbbLegMilanoLookup
+        ? fetchSbbLegOriginPlatform(env, config.sbbLegMilanoLookup)
         : Promise.resolve(null)
     ])
-    const route = buildRoute(config.route, sbb, trenitalia, now)
+    const route = buildRoute(config.route, sbb, trenitalia, now, sbbLegOrigin)
     const overall = deriveTransferAwareStatus(config, sbb, trenitalia)
     const effectiveEndIso = computeEffectiveEndIso(config, sbb, trenitalia)
     return jsonResponse(
@@ -239,7 +252,8 @@ export default {
         route,
         staticEndIso: new Date(config.staticEndMs).toISOString(),
         effectiveEndIso,
-        trenitaliaFetchActive
+        trenitaliaFetchActive,
+        sbbLegOrigin
       },
       200,
       { 'Cache-Control': 'public, max-age=60' }
@@ -329,10 +343,13 @@ function deriveTransferAwareStatus(config, sbb, trenitalia) {
 
 // --- Route ---
 
-function buildRoute(routeDef, sbb, trenitalia, nowMs) {
+function buildRoute(routeDef, sbb, trenitalia, nowMs, sbbLegOrigin) {
   const liveDepTime = sbb?.realtimeDeparture ? hmInZurich(sbb.realtimeDeparture) : null
   const liveArrTime = sbb?.realtimeArrival ? hmInZurich(sbb.realtimeArrival) : null
-  const platform = sbb?.platform || null
+  const sbbPlatform = sbb?.platform || null
+  // Bei Rueckreise hat das via ViaggiaTreno gemeldete Gleis Vorrang —
+  // SBB OpenData hat dort meist kein Gleis fuer auslaendische Abfahrten.
+  const sbbLegPlatform = sbbLegOrigin?.platform || null
   return routeDef
     .filter((stop) => Date.parse(stop.revealAt) <= nowMs)
     .map((stop) => {
@@ -340,6 +357,7 @@ function buildRoute(routeDef, sbb, trenitalia, nowMs) {
       delete out.revealAt
       if (stop.kind === 'sbb_dep') {
         if (liveDepTime) out.time = liveDepTime
+        const platform = sbbLegPlatform || sbbPlatform
         if (platform) out.platform = platform
         if (typeof sbb?.delayMinutes === 'number' && sbb.delayMinutes > 0) {
           out.delayMinutes = sbb.delayMinutes
@@ -445,6 +463,72 @@ export async function fetchTrenitaliaStatus(env, config) {
       dep: fromStop(depStop, 'dep'),
       arr: fromStop(arrStop, 'arr')
     }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Holt das Abfahrtsgleis fuer einen SBB-Zug an einem auslaendischen
+ * Startbahnhof via ViaggiaTreno. Konkret: EC 20 in Mailand Centrale fuer
+ * die Rueckreise. SBB OpenData liefert das fuer auslaendische
+ * Abfahrtsbahnhoefe nicht zuverlaessig.
+ *
+ * Liefert { platform, delayMinutes } oder null. Best effort.
+ */
+export async function fetchSbbLegOriginPlatform(env, lookup) {
+  if (!lookup) return null
+  try {
+    const cercaUrl = `${VT_PROXY}/cercaNumeroTrenoTrenoAutocomplete/${lookup.trainNo}`
+    const cercaRes = await fetch(cercaUrl, {
+      headers: jinaHeaders(env),
+      cf: { cacheTtl: 3600, cacheEverything: true }
+    })
+    if (!cercaRes.ok) return null
+    const cercaText = await cercaRes.text()
+    if (isRateLimitedBody(cercaText)) return null
+
+    const body = cercaText.split('Markdown Content:')[1]?.trim() ?? ''
+    const lines = body.split('\n').map((l) => l.trim()).filter(Boolean)
+    const ids = lines
+      .map((l) => l.split('|')[1])
+      .filter(Boolean)
+      .map((tuple) => {
+        const parts = tuple.split('-')
+        return { trainNo: parts[0], stationId: parts[1], epoch: parts[2] }
+      })
+    const pick = ids.find((i) => i.stationId === lookup.originStationId)
+    if (!pick) return null
+
+    const andUrl = `${VT_PROXY}/andamentoTreno/${pick.stationId}/${pick.trainNo}/${pick.epoch}`
+    const andRes = await fetch(andUrl, {
+      headers: jinaHeaders(env),
+      cf: { cacheTtl: 180, cacheEverything: true }
+    })
+    if (!andRes.ok) return null
+    const andText = await andRes.text()
+    if (isRateLimitedBody(andText)) return null
+    const andBody = andText.split('Markdown Content:')[1]?.trim() ?? ''
+    let andJson
+    try {
+      andJson = JSON.parse(andBody)
+    } catch {
+      return null
+    }
+
+    const fermate = Array.isArray(andJson?.fermate) ? andJson.fermate : []
+    const origin = fermate.find((f) => f.id === lookup.originStationId)
+    if (!origin) return null
+
+    // Plausibilitaet: planmaessige Abfahrt im erwarteten Fenster.
+    if (!isInZurichDepartureWindow(origin.partenza_teorica, lookup.depHourWindowZurich)) return null
+
+    const platform =
+      origin.binarioEffettivoPartenzaDescrizione ??
+      origin.binarioProgrammatoPartenzaDescrizione ??
+      null
+    const delay = typeof origin.ritardoPartenza === 'number' ? origin.ritardoPartenza : 0
+    return { platform, delayMinutes: delay, trainName: andJson?.compNumeroTreno ?? null }
   } catch {
     return null
   }
