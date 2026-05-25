@@ -73,6 +73,22 @@ function hmInZurich(iso) {
   }).format(new Date(ms))
 }
 
+// Zeitfenster fuer die geplante Mailand-Abfahrt. Real ist 11:10 Zurich-Zeit,
+// das Fenster 10:00 bis 12:00 (exklusive) faengt nur unseren Zug ein und
+// verwirft fremde 9612er, die zufaellig auch durch Mailand fahren.
+const TRENITALIA_DEPARTURE_WINDOW = { minHourZurich: 10, maxHourZurich: 12 }
+
+function isInZurichDepartureWindow(ms) {
+  if (typeof ms !== 'number') return false
+  const hour = Number(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Zurich',
+    hour: '2-digit',
+    hour12: false
+  }).format(new Date(ms)))
+  return hour >= TRENITALIA_DEPARTURE_WINDOW.minHourZurich
+    && hour < TRENITALIA_DEPARTURE_WINDOW.maxHourZurich
+}
+
 const TEST_OVERRIDE_TOKEN = 'pegelspitze-bunker-2026'
 
 // Wenn JINA_API_KEY als Cloudflare-Secret hinterlegt ist, schickt der Worker
@@ -215,8 +231,18 @@ async function fetchTrenitaliaStatus(env, nowMs) {
     const fermate = Array.isArray(andJson?.fermate) ? andJson.fermate : []
     if (fermate.length === 0) return null
 
-    const milano = fermate.find((f) => f.id === MILANO_CENTRALE_ID)
-    const torino = fermate.find((f) => f.id === TORINO_PORTA_NUOVA_ID)
+    // Beide Halte muessen vorkommen UND Mailand muss vor Turin liegen
+    // (sonst faehrt der Zug in falsche Richtung oder ist ein anderer 9612).
+    const milanoIdx = fermate.findIndex((f) => f.id === MILANO_CENTRALE_ID)
+    const torinoIdx = fermate.findIndex((f) => f.id === TORINO_PORTA_NUOVA_ID)
+    if (milanoIdx < 0 || torinoIdx < 0 || milanoIdx >= torinoIdx) return null
+
+    const milano = fermate[milanoIdx]
+    const torino = fermate[torinoIdx]
+
+    // Plausibilitaet: Geplante Mailand-Abfahrt muss im erwarteten Fenster
+    // liegen. Sonst ist es ein fremder 9612, kein Live-Match.
+    if (!isInZurichDepartureWindow(milano?.partenza_teorica)) return null
 
     const fromStop = (f, mode) => {
       if (!f) return null

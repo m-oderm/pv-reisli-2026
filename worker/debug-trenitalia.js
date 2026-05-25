@@ -20,6 +20,31 @@ function jinaHeaders(env) {
   return key ? { Authorization: `Bearer ${key}` } : {}
 }
 
+// Spiegelt das Plausibilitaets-Fenster aus worker/travel-status.js.
+// Mailand-Abfahrt zwischen 10:00 und 12:00 (Europe/Zurich, exklusive max).
+const TRENITALIA_DEPARTURE_WINDOW = { minHourZurich: 10, maxHourZurich: 12 }
+
+function isInZurichDepartureWindow(ms) {
+  if (typeof ms !== 'number') return false
+  const hour = Number(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Zurich',
+    hour: '2-digit',
+    hour12: false
+  }).format(new Date(ms)))
+  return hour >= TRENITALIA_DEPARTURE_WINDOW.minHourZurich
+    && hour < TRENITALIA_DEPARTURE_WINDOW.maxHourZurich
+}
+
+function hmInZurich(ms) {
+  if (typeof ms !== 'number') return null
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Zurich',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(new Date(ms))
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return preflight()
@@ -65,11 +90,31 @@ export default {
           try {
             const json = JSON.parse(result.andamento.markdown)
             const fermate = Array.isArray(json?.fermate) ? json.fermate : []
-            const milano = fermate.find((f) => f.id === MILANO_CENTRALE_ID) ?? null
-            const torino = fermate.find((f) => f.id === TORINO_PORTA_NUOVA_ID) ?? null
+            const milanoIdx = fermate.findIndex((f) => f.id === MILANO_CENTRALE_ID)
+            const torinoIdx = fermate.findIndex((f) => f.id === TORINO_PORTA_NUOVA_ID)
+            const milano = milanoIdx >= 0 ? fermate[milanoIdx] : null
+            const torino = torinoIdx >= 0 ? fermate[torinoIdx] : null
             result.parsed.fermateCount = fermate.length
             result.parsed.milanoStop = milano
             result.parsed.torinoStop = torino
+            // Validierungs-Checks: spiegeln die Logik in worker/travel-status.js,
+            // damit man im Debug sieht ob der Live-Match angenommen wird.
+            const directionOk = milanoIdx >= 0 && torinoIdx >= 0 && milanoIdx < torinoIdx
+            const plannedDepartureMs = typeof milano?.partenza_teorica === 'number' ? milano.partenza_teorica : null
+            const plannedArrivalMs = typeof torino?.arrivo_teorico === 'number' ? torino.arrivo_teorico : null
+            const scheduleOk = isInZurichDepartureWindow(plannedDepartureMs)
+            result.parsed.directionCheck = {
+              ok: directionOk,
+              milanoIndex: milanoIdx,
+              torinoIndex: torinoIdx
+            }
+            result.parsed.scheduleCheck = {
+              ok: scheduleOk,
+              plannedDepartureMilano: hmInZurich(plannedDepartureMs),
+              plannedArrivalTorino: hmInZurich(plannedArrivalMs),
+              windowZurich: `${TRENITALIA_DEPARTURE_WINDOW.minHourZurich}:00–${TRENITALIA_DEPARTURE_WINDOW.maxHourZurich}:00`
+            }
+            result.parsed.liveMatchAccepted = directionOk && scheduleOk && fermate.length > 0
             result.parsed.relevantStations = fermate.map((f) => ({
               id: f.id,
               stazione: f.stazione,

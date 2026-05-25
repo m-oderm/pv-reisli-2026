@@ -2892,6 +2892,32 @@ function summarizeDebugTrenitalia(data) {
       value: typeof m.ritardoPartenza === 'number' ? `${m.ritardoPartenza} Min` : '—'
     })
   }
+  if (parsed?.directionCheck) {
+    items.push({
+      label: 'Richtung Mailand → Turin',
+      value: parsed.directionCheck.ok ? 'plausibel' : 'NICHT plausibel'
+    })
+  }
+  if (parsed?.scheduleCheck) {
+    items.push({
+      label: 'Geplante Mailand-Abfahrt',
+      value: parsed.scheduleCheck.plannedDepartureMilano ?? '—'
+    })
+    items.push({
+      label: 'Geplante Turin-Ankunft',
+      value: parsed.scheduleCheck.plannedArrivalTorino ?? '—'
+    })
+    items.push({
+      label: `Fahrplan-Fenster (${parsed.scheduleCheck.windowZurich ?? '10:00–12:00'} Zürich)`,
+      value: parsed.scheduleCheck.ok ? 'passt' : 'AUSSERHALB'
+    })
+  }
+  if (typeof parsed?.liveMatchAccepted === 'boolean') {
+    items.push({
+      label: 'Live-Daten werden übernommen',
+      value: parsed.liveMatchAccepted ? 'ja' : 'nein (Fallback auf Fahrplan)'
+    })
+  }
   if (parsed?.parseError) {
     items.push({ label: 'Parse-Fehler', value: parsed.parseError })
   }
