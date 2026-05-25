@@ -85,6 +85,9 @@ const COUNTDOWN_TARGET_MS = new Date('2026-05-30T07:45:00+02:00').getTime()
 const TRAVEL_QUEST_START_MS = COUNTDOWN_TARGET_MS
 const SATURDAY_UNLOCK_MS = new Date('2026-05-30T12:20:00+02:00').getTime()
 const SATURDAY_MIDNIGHT_MS = new Date('2026-05-30T00:00:00+02:00').getTime()
+// Rueckreise: 30 min vor Abfahrt FR 9641 (13:50 Europe/Rome = Europe/Zurich).
+const RUECKREISE_UNLOCK_MS = new Date('2026-06-02T13:20:00+02:00').getTime()
+const RUECKREISE_END_MS = new Date('2026-06-02T18:30:00+02:00').getTime()
 const TRIP_END_MS = new Date('2026-06-02T19:00:00+02:00').getTime()
 
 const NAV_ITEMS_PRE_TRIP = [
@@ -776,8 +779,9 @@ function Ribbon({ children }) {
 function getHeroPhase(nowMs) {
   if (nowMs < TRAVEL_QUEST_START_MS) return 'pre'
   if (nowMs < SATURDAY_UNLOCK_MS) return 'anreise'
-  if (nowMs < TRIP_END_MS) return 'fokus'
-  return 'finale'
+  if (nowMs >= TRIP_END_MS) return 'finale'
+  if (nowMs >= RUECKREISE_UNLOCK_MS && nowMs < RUECKREISE_END_MS) return 'rueckreise'
+  return 'fokus'
 }
 
 function getPreHeroContent(secret) {
@@ -828,6 +832,43 @@ function getAnreiseHeroContent(travelStatus, secret) {
         text: nextStop ? `${nextStop.time} · ${nextStop.label}` : 'Unterwegs'
       },
       { Icon: CalendarDays, text: 'Tag 1 von 4' },
+      { Icon: ShieldCheck, text: statusText }
+    ]
+  }
+}
+
+function getRueckreiseHeroContent(travelStatus, secret) {
+  const route = travelStatus?.route ?? []
+  const nowHm = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Zurich',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(new Date(effectiveNow()))
+  const nextStop = route.find((s) => typeof s.time === 'string' && /^\d{2}:\d{2}$/.test(s.time) && s.time > nowHm)
+    ?? route[route.length - 1]
+    ?? null
+
+  let statusText = 'Heimfahrt'
+  if (travelStatus?.status === 'on_time') statusText = 'pünktlich'
+  else if (travelStatus?.status === 'delayed' && typeof travelStatus.delayMinutes === 'number') {
+    statusText = `+${travelStatus.delayMinutes} min`
+  } else if (travelStatus?.status === 'unknown') statusText = 'Lage unklar'
+
+  return {
+    stamp: secret ? 'KLASSIFIZIERT · RÜCKMARSCH AKTIV' : 'MISSION KLINGT AUS · RÜCKREISE',
+    ribbon: 'Heimweg läuft.',
+    note: (
+      <>
+        <Sparkles size={14} aria-hidden="true" /> {travelStatus?.message ?? 'Der Zug rollt heimwärts.'}
+      </>
+    ),
+    facts: [
+      {
+        Icon: Train,
+        text: nextStop ? `${nextStop.time} · ${nextStop.label}` : 'Heimfahrt'
+      },
+      { Icon: CalendarDays, text: 'Tag 4 von 4' },
       { Icon: ShieldCheck, text: statusText }
     ]
   }
@@ -917,6 +958,7 @@ function Hero() {
 
   const content = useMemo(() => {
     if (phase === 'anreise') return getAnreiseHeroContent(travelStatus, secret)
+    if (phase === 'rueckreise') return getRueckreiseHeroContent(travelStatus, secret)
     if (phase === 'fokus') return getFokusHeroContent(program, weather, now, secret)
     if (phase === 'finale') return getFinaleHeroContent(secret)
     return getPreHeroContent(secret)
@@ -2360,6 +2402,7 @@ function Tagesbriefing({ tripStarted, now }) {
   const { data: weather } = useTravelConditions()
   const secret = useSecretMode()
   const [pinnedDayId, setPinnedDayId] = useState(null)
+  const phase = getHeroPhase(now)
 
   const kicker = secret ? 'AKTIVER TAGESBEFEHL' : 'Heute im Fokus'
   const title = secret ? 'Einsatzverlauf' : 'Tagesbriefing'
@@ -2375,6 +2418,8 @@ function Tagesbriefing({ tripStarted, now }) {
     )
   } else if (data?.showQuest && data.quest) {
     content = <TravelQuestCard quest={data.quest} travelStatus={travelStatus} now={now} secret={secret} />
+  } else if (phase === 'rueckreise') {
+    content = <RueckreiseCard travelStatus={travelStatus} secret={secret} />
   } else if (!data || getUnlockedDays(data.days, now).length === 0) {
     content = <BeforeTripCard secret={secret} />
   } else {
@@ -2530,6 +2575,27 @@ function TravelQuestCard({ quest, travelStatus, now, secret }) {
           <Clock size={14} aria-hidden="true" /> Nächster Hinweis um {formatUnlockHm(nextLocked.unlockAt)} Uhr
         </p>
       )}
+    </Card>
+  )
+}
+
+function RueckreiseCard({ travelStatus, secret }) {
+  return (
+    <Card className="card-cream tb-quest tb-rueckreise">
+      <div className="tb-quest-head">
+        <span className="tb-quest-badge"><Train size={12} aria-hidden="true" /> {secret ? 'Heimkehr' : 'Heimreise'}</span>
+        <span className="tb-quest-status"><Sparkles size={12} aria-hidden="true" /> live</span>
+      </div>
+      <p className="tb-chapter">{secret ? 'Tag 4 · Rückmarsch' : 'Tag 4 · Heimweg'}</p>
+      <h3 className="tb-quest-title">{secret ? 'Rückmarsch nach Zug' : 'Heimreise nach Zug'}</h3>
+      <p className="tb-motto">«Mission erfüllt, Mannschaft heimwärts.»</p>
+      <p className="tb-intro">
+        {secret
+          ? 'Operation klingt aus. Reihenfolge: Trenitalia bis Mailand, Umstieg 20 Min, EC 20 bis Zug. Live-Lage unten.'
+          : 'Die Reise geht zu Ende. Trenitalia bis Mailand, kurzer Umstieg, EC 20 zurück nach Zug. Live-Status unten.'}
+      </p>
+      {travelStatus && <TravelStatusCard status={travelStatus} secret={secret} />}
+      {travelStatus?.route?.length > 0 && <AnreiseRoute route={travelStatus.route} secret={secret} />}
     </Card>
   )
 }
@@ -2745,12 +2811,21 @@ function HighlightList({ items }) {
   if (!items?.length) return null
   return (
     <dl className="debug-highlights">
-      {items.map((h, i) => (
-        <div key={i} className="debug-highlight">
-          <dt>{h.label}</dt>
-          <dd>{h.value ?? <span className="debug-empty">—</span>}</dd>
-        </div>
-      ))}
+      {items.map((h, i) => {
+        if (h.section) {
+          return (
+            <div key={i} className="debug-highlights-section">
+              <strong>{h.section}</strong>
+            </div>
+          )
+        }
+        return (
+          <div key={i} className="debug-highlight">
+            <dt>{h.label}</dt>
+            <dd>{h.value ?? <span className="debug-empty">—</span>}</dd>
+          </div>
+        )
+      })}
     </dl>
   )
 }
@@ -2782,13 +2857,19 @@ function summarizeTravelStatus(data) {
     tight: 'knapp',
     missed: 'verpasst'
   }
+  const tripMap = { outbound: 'Anreise (Sa)', return: 'Rückreise (Di)' }
   const route = Array.isArray(data.route) ? data.route : []
-  const trenitaliaStops = route.filter((s) => s.label === 'Umstieg' || s.label === 'Ankunft am Ziel')
+  const isReturn = data.tripId === 'return'
+  const trenitaliaLabels = isReturn
+    ? ['Abfahrt am Reisestart', 'Ankunft Mailand Centrale']
+    : ['Umstieg', 'Ankunft am Ziel']
+  const trenitaliaStops = route.filter((s) => trenitaliaLabels.includes(s.label))
   const trenitaliaLive = trenitaliaStops.some((s) => s.platform || typeof s.delayMinutes === 'number')
   const transferValue = data.transferRisk
     ? `${riskMap[data.transferRisk] ?? data.transferRisk}${typeof data.transferMarginMin === 'number' ? ` (${data.transferMarginMin} Min Restpuffer)` : ''}`
     : '—'
   return [
+    { label: 'Aktive Etappe', value: tripMap[data.tripId] ?? data.tripId ?? '—' },
     { label: 'Reise-Lage (kombiniert)', value: map[data.status] ?? data.status ?? '—' },
     {
       label: 'SBB-Verspätung',
@@ -2845,25 +2926,26 @@ function describeStepStatus(step) {
 
 function summarizeDebugTrenitalia(data) {
   if (!data || typeof data !== 'object') return null
-  const cerca = data.cerca
-  const andamento = data.andamento
-  const parsed = data.parsed
   const items = []
-  items.push({
-    label: 'Vermittler (HTTPS-Proxy)',
-    value: 'r.jina.ai'
-  })
-  items.push({
-    label: 'Eigentliche Quelle',
-    value: 'viaggiatreno.it (italienische Bahn, nur HTTP)'
-  })
-  items.push({ label: 'Zug-Nummer', value: data.meta?.train ?? '—' })
-  if (cerca) {
-    items.push({
-      label: 'Zug-Suche (Schritt 1)',
-      value: describeStepStatus(cerca)
-    })
+  items.push({ label: 'Vermittler (HTTPS-Proxy)', value: 'r.jina.ai' })
+  items.push({ label: 'Eigentliche Quelle', value: 'viaggiatreno.it (italienische Bahn, nur HTTP)' })
+  items.push({ label: 'Authentifizierung', value: data.meta?.auth ?? '—' })
+
+  appendTripSection(items, 'Anreise · Trenitalia 9612 (Mailand → Turin)', data.outbound, 'mailand_torino')
+  appendTripSection(items, 'Rückreise · Trenitalia 9641 (Turin → Mailand)', data.return, 'torino_mailand')
+
+  return items
+}
+
+function appendTripSection(items, sectionTitle, trip, direction) {
+  items.push({ section: sectionTitle })
+  if (!trip) {
+    items.push({ label: 'Status', value: 'keine Daten' })
+    return
   }
+  const { cerca, andamento, parsed, config } = trip
+  if (config?.train) items.push({ label: 'Zug-Nummer', value: config.train })
+  if (cerca) items.push({ label: 'Zug-Suche (Schritt 1)', value: describeStepStatus(cerca) })
   if (parsed?.allIds) {
     items.push({
       label: 'Gefundene Zug-IDs heute',
@@ -2872,56 +2954,37 @@ function summarizeDebugTrenitalia(data) {
   }
   if (parsed?.pickedForAndamento) {
     const p = parsed.pickedForAndamento
-    items.push({
-      label: 'Ausgewählter Eintrag',
-      value: `${p.stationId} · Zug ${p.trainNo}`
-    })
+    items.push({ label: 'Ausgewählter Eintrag', value: `${p.stationId} · Zug ${p.trainNo}` })
   }
-  if (andamento) {
-    items.push({
-      label: 'Detail-Abfrage (Schritt 2)',
-      value: describeStepStatus(andamento)
-    })
-  }
+  if (andamento) items.push({ label: 'Detail-Abfrage (Schritt 2)', value: describeStepStatus(andamento) })
   if (parsed?.fermateCount != null) {
     items.push({ label: 'Anzahl Stops im Zug', value: parsed.fermateCount })
-    items.push({
-      label: 'Mailand Centrale gefunden',
-      value: parsed.milanoStop ? 'ja' : 'nein'
-    })
-    items.push({
-      label: 'Turin Porta Nuova gefunden',
-      value: parsed.torinoStop ? 'ja' : 'nein'
-    })
+    items.push({ label: 'Startbahnhof gefunden', value: parsed.depStop ? 'ja' : 'nein' })
+    items.push({ label: 'Zielbahnhof gefunden', value: parsed.arrStop ? 'ja' : 'nein' })
   }
-  if (parsed?.milanoStop) {
-    const m = parsed.milanoStop
+  if (parsed?.depStop) {
+    const m = parsed.depStop
     items.push({
-      label: 'Mailand: Gleis (geplant / effektiv)',
+      label: 'Startbahnhof: Gleis (geplant / effektiv)',
       value: `${m.binarioProgrammatoPartenzaDescrizione ?? '—'} / ${m.binarioEffettivoPartenzaDescrizione ?? '—'}`
     })
     items.push({
-      label: 'Mailand: Verspätung Abfahrt',
+      label: 'Startbahnhof: Verspätung Abfahrt',
       value: typeof m.ritardoPartenza === 'number' ? `${m.ritardoPartenza} Min` : '—'
     })
   }
   if (parsed?.directionCheck) {
+    const arrow = direction === 'mailand_torino' ? 'Mailand → Turin' : 'Turin → Mailand'
     items.push({
-      label: 'Richtung Mailand → Turin',
+      label: `Richtung ${arrow}`,
       value: parsed.directionCheck.ok ? 'plausibel' : 'NICHT plausibel'
     })
   }
   if (parsed?.scheduleCheck) {
+    items.push({ label: 'Geplante Abfahrt (Start)', value: parsed.scheduleCheck.plannedDeparture ?? '—' })
+    items.push({ label: 'Geplante Ankunft (Ziel)', value: parsed.scheduleCheck.plannedArrival ?? '—' })
     items.push({
-      label: 'Geplante Mailand-Abfahrt',
-      value: parsed.scheduleCheck.plannedDepartureMilano ?? '—'
-    })
-    items.push({
-      label: 'Geplante Turin-Ankunft',
-      value: parsed.scheduleCheck.plannedArrivalTorino ?? '—'
-    })
-    items.push({
-      label: `Fahrplan-Fenster (${parsed.scheduleCheck.windowZurich ?? '10:00–12:00'} Zürich)`,
+      label: `Fahrplan-Fenster (${parsed.scheduleCheck.windowZurich ?? '—'} Zürich)`,
       value: parsed.scheduleCheck.ok ? 'passt' : 'AUSSERHALB'
     })
   }
@@ -2934,14 +2997,21 @@ function summarizeDebugTrenitalia(data) {
   if (parsed?.parseError) {
     items.push({ label: 'Parse-Fehler', value: parsed.parseError })
   }
-  return items
 }
 
 function detectRateLimit(data) {
   if (!data || typeof data !== 'object') return false
   // Worker-Endpoint signalisiert Rate-Limit indirekt: cerca/andamento
-  // hat rawTextPreview mit code:429
-  const samples = [data.cerca?.rawTextPreview, data.andamento?.rawTextPreview]
+  // hat rawTextPreview mit code:429. Pruefe sowohl flache als auch
+  // verschachtelte (outbound/return) Form.
+  const samples = [
+    data.cerca?.rawTextPreview,
+    data.andamento?.rawTextPreview,
+    data.outbound?.cerca?.rawTextPreview,
+    data.outbound?.andamento?.rawTextPreview,
+    data.return?.cerca?.rawTextPreview,
+    data.return?.andamento?.rawTextPreview
+  ]
   return samples.some((s) => typeof s === 'string' && /"code":\s*429|RateLimitTriggered|Per IP rate limit/i.test(s))
 }
 
@@ -3017,7 +3087,7 @@ function DebugSection() {
       {
         key: 'travelStatus',
         title: 'Reise-Lage (SBB + Trenitalia)',
-        description: 'Live-Daten der Anreise: kombiniert SBB-Echtzeit für die Schweizer Etappe mit Trenitalia (via Proxy) für den italienischen Teil. Bewertet auch ob der Umstieg in Mailand bei aktueller Verspätung noch sicher ist (20 Min Puffer).',
+        description: 'Live-Daten der aktiven Etappe (Anreise oder Rückreise je nach Zeit): kombiniert SBB-Echtzeit mit Trenitalia (via Proxy). Bewertet ob der Umstieg in Mailand bei aktueller Verspätung noch sicher ist (20 Min Puffer).',
         url: statusUrl,
         summarize: summarizeTravelStatus
       },
@@ -3031,7 +3101,7 @@ function DebugSection() {
       {
         key: 'debugTrenitalia',
         title: 'Trenitalia roh (r.jina.ai)',
-        description: 'Die unverarbeiteten Antworten des italienischen Live-Systems ViaggiaTreno, gespiegelt über den HTTPS-Proxy r.jina.ai. Zeigt Schritt 1 (Zug-Suche) und Schritt 2 (Live-Lauf).',
+        description: 'Die unverarbeiteten Antworten beider Trenitalia-Züge (Anreise FR 9612 und Rückreise FR 9641), gespiegelt über r.jina.ai. Pro Zug: Zug-Suche, Live-Lauf und Validierungs-Checks.',
         url: debugUrl,
         summarize: summarizeDebugTrenitalia
       }

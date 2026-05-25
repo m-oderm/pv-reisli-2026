@@ -1,75 +1,146 @@
 /**
  * PV-Reisli 2026: Travel-Status Endpoint
  *
- * Holt Echtzeit-Status der Anreise via transport.opendata.ch (SBB OpenData).
- * Liefert dem Frontend nur sanitisierte Felder:
- *   status, delayMinutes, platform, plannedDeparture, message, updatedAt
+ * Liefert Live-Status der aktiven Reise-Etappe. Anreise (Sa) bis und mit
+ * Dienstag 13:20 (= 30 min vor Abfahrt Rueckreise), danach Rueckreise.
  *
- * Der Zielort (Mailand) wird im Worker als Routing-Parameter genutzt,
- * erscheint aber NICHT im Response. Geheimhaltung bleibt gewahrt.
+ * Beide Trips folgen demselben Muster: eine SBB-Etappe + 20 min Umstieg
+ * in Mailand + eine Trenitalia-Etappe (in unterschiedlicher Reihenfolge).
+ *
+ * Response enthaelt {tripId, status, delayMinutes, ..., route, transfer*}
+ * und ist sanitisiert (kein Geheim-Wort).
  */
 
 const SBB_API = 'https://transport.opendata.ch/v1/connections'
-const ANREISE_FROM = 'Zug'
-const ANREISE_TO = 'Milano Centrale'
-const ANREISE_DATE = '2026-05-30'
-const ANREISE_TIME = '08:00'
 
 // ViaggiaTreno spricht nur plain HTTP, Cloudflare Workers nur HTTPS.
 // r.jina.ai ist ein offener Reader-Proxy, der HTTP-Quellen ueber HTTPS
 // spiegelt. Fragil aber funktional. Fallback: nur statische Daten.
 const VT_PROXY = 'https://r.jina.ai/http://www.viaggiatreno.it/infomobilita/resteasy/viaggiatreno'
+
 const MILANO_CENTRALE_ID = 'S01700'
 const TORINO_PORTA_NUOVA_ID = 'S00219'
-const TRENITALIA_TRAIN = '9612'
 
 const DEFAULT_MESSAGE = 'Die Reise läuft planmässig.'
 const UNKNOWN_MESSAGE =
   'Live-Zuginfo derzeit nicht verfügbar. Die Reiseleitung wirkt dennoch zuversichtlich.'
 
-// Umstiegs-Bewertung in Mailand. Ankunft SBB 10:50, Abfahrt Trenitalia 11:10
-// = 20 Min Puffer. Faellt der Puffer unter 5 Min, wird der Umstieg knapp;
-// bei 0 oder negativ ist der Anschluss-Trenitalia nicht mehr erreichbar.
+// Umstieg in Mailand: Ankunft erste Etappe -> Abfahrt zweite Etappe = 20 Min.
+// Faellt der Puffer unter 5 Min, wird der Umstieg knapp; bei 0 oder negativ
+// ist der Anschluss nicht mehr erreichbar.
 const TRANSFER_BUFFER_MIN = 20
 const TRANSFER_TIGHT_THRESHOLD = 5
 
-// Anreise-Route. Stops erscheinen schrittweise (revealAt). Schweizer Teil
-// (kind: sbb_dep, sbb_arr) wird mit Live-Daten angereichert, italienischer
-// Teil bleibt statisch. Mailand ist Zwischenhalt und nicht in der
-// Geheim-Wortliste, das Endziel bleibt unbenannt.
-const ANREISE_ROUTE = [
-  {
-    kind: 'sbb_dep',
-    time: '08:00',
-    revealAt: '2026-05-30T07:45:00+02:00',
-    label: 'Abfahrt Bahnhof Zug',
-    detail: 'EC 13 Richtung Mailand'
+const TEST_OVERRIDE_TOKEN = 'pegelspitze-bunker-2026'
+
+// Ab diesem Zeitpunkt wechselt der aktive Trip von Anreise auf Rueckreise.
+// 30 min vor Abfahrt Trenitalia 9641 in Turin (13:50 Europe/Rome = Europe/Zurich).
+const RETURN_UNLOCK_MS = Date.parse('2026-06-02T13:20:00+02:00')
+
+// --- Trip-Konfigurationen ---
+
+const OUTBOUND_CONFIG = {
+  id: 'outbound',
+  sbb: { from: 'Zug', to: 'Milano Centrale', date: '2026-05-30', time: '08:00' },
+  trenitalia: {
+    trainNo: '9612',
+    depStationId: MILANO_CENTRALE_ID,
+    arrStationId: TORINO_PORTA_NUOVA_ID,
+    depHourWindowZurich: { min: 10, max: 12 }
   },
-  {
-    kind: 'sbb_arr',
-    time: '10:50',
-    revealAt: '2026-05-30T08:00:00+02:00',
-    label: 'Ankunft Mailand Centrale',
-    detail: '2 h 50 min Fahrzeit'
+  // SBB ist die erste Etappe und kann durch Verspaetung den Umstieg vermasseln.
+  firstLeg: 'sbb',
+  connectionLabel: 'Anschluss-Trenitalia 11:10',
+  route: [
+    {
+      kind: 'sbb_dep',
+      time: '08:00',
+      revealAt: '2026-05-30T07:45:00+02:00',
+      label: 'Abfahrt Bahnhof Zug',
+      detail: 'EC 13 Richtung Mailand'
+    },
+    {
+      kind: 'sbb_arr',
+      time: '10:50',
+      revealAt: '2026-05-30T08:00:00+02:00',
+      label: 'Ankunft Mailand Centrale',
+      detail: '2 h 50 min Fahrzeit'
+    },
+    {
+      kind: 'trenitalia_dep',
+      time: '11:10',
+      revealAt: '2026-05-30T10:40:00+02:00',
+      label: 'Umstieg',
+      detail: 'FR 9612, ca. 1 h 6 min'
+    },
+    {
+      kind: 'trenitalia_arr',
+      time: '12:16',
+      revealAt: '2026-05-30T11:00:00+02:00',
+      label: 'Ankunft am Ziel',
+      detail: null
+    }
+  ]
+}
+
+const RETURN_CONFIG = {
+  id: 'return',
+  sbb: { from: 'Milano Centrale', to: 'Zug', date: '2026-06-02', time: '15:10' },
+  trenitalia: {
+    trainNo: '9641',
+    depStationId: TORINO_PORTA_NUOVA_ID,
+    arrStationId: MILANO_CENTRALE_ID,
+    depHourWindowZurich: { min: 13, max: 15 }
   },
-  {
-    kind: 'trenitalia_dep',
-    time: '11:10',
-    revealAt: '2026-05-30T10:40:00+02:00',
-    label: 'Umstieg',
-    detail: 'FR 9612, ca. 1 h 6 min'
-  },
-  {
-    kind: 'trenitalia_arr',
-    time: '12:16',
-    revealAt: '2026-05-30T11:00:00+02:00',
-    label: 'Ankunft am Ziel',
-    detail: null
-  }
-]
+  // Trenitalia ist die erste Etappe und kann durch Verspaetung den Umstieg vermasseln.
+  firstLeg: 'trenitalia',
+  connectionLabel: 'Anschluss-EC 20 15:10',
+  // Rueckreise: alle Stops sind ab Unlock-Zeit sichtbar (kein schrittweises Reveal).
+  route: [
+    {
+      kind: 'trenitalia_dep',
+      time: '13:50',
+      revealAt: '2026-06-02T13:20:00+02:00',
+      label: 'Abfahrt am Reisestart',
+      detail: 'FR 9641, ca. 1 h'
+    },
+    {
+      kind: 'trenitalia_arr',
+      time: '14:50',
+      revealAt: '2026-06-02T13:20:00+02:00',
+      label: 'Ankunft Mailand Centrale',
+      detail: 'Umstieg auf SBB'
+    },
+    {
+      kind: 'sbb_dep',
+      time: '15:10',
+      revealAt: '2026-06-02T13:20:00+02:00',
+      label: 'Abfahrt Mailand Centrale',
+      detail: 'EC 20 Richtung Zürich'
+    },
+    {
+      kind: 'sbb_arr',
+      time: '18:00',
+      revealAt: '2026-06-02T13:20:00+02:00',
+      label: 'Ankunft Zug',
+      detail: 'Bahnhof Zug'
+    }
+  ]
+}
+
+export function getActiveTripConfig(nowMs) {
+  return nowMs >= RETURN_UNLOCK_MS ? RETURN_CONFIG : OUTBOUND_CONFIG
+}
+
+// Exportierte Configs damit der Debug-Endpoint beide Züge gleichzeitig
+// abfragen kann ohne Duplikation.
+export { OUTBOUND_CONFIG, RETURN_CONFIG, MILANO_CENTRALE_ID, TORINO_PORTA_NUOVA_ID, VT_PROXY }
+export { jinaHeaders, isRateLimitedBody, hmInZurich, isInZurichDepartureWindow }
+
+// --- Helpers ---
 
 function hmInZurich(iso) {
-  const ms = Date.parse(iso)
+  const ms = typeof iso === 'number' ? iso : Date.parse(iso)
   if (Number.isNaN(ms)) return null
   return new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Europe/Zurich',
@@ -79,23 +150,15 @@ function hmInZurich(iso) {
   }).format(new Date(ms))
 }
 
-// Zeitfenster fuer die geplante Mailand-Abfahrt. Real ist 11:10 Zurich-Zeit,
-// das Fenster 10:00 bis 12:00 (exklusive) faengt nur unseren Zug ein und
-// verwirft fremde 9612er, die zufaellig auch durch Mailand fahren.
-const TRENITALIA_DEPARTURE_WINDOW = { minHourZurich: 10, maxHourZurich: 12 }
-
-function isInZurichDepartureWindow(ms) {
-  if (typeof ms !== 'number') return false
+function isInZurichDepartureWindow(ms, window) {
+  if (typeof ms !== 'number' || !window) return false
   const hour = Number(new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Europe/Zurich',
     hour: '2-digit',
     hour12: false
   }).format(new Date(ms)))
-  return hour >= TRENITALIA_DEPARTURE_WINDOW.minHourZurich
-    && hour < TRENITALIA_DEPARTURE_WINDOW.maxHourZurich
+  return hour >= window.min && hour < window.max
 }
-
-const TEST_OVERRIDE_TOKEN = 'pegelspitze-bunker-2026'
 
 // Wenn JINA_API_KEY als Cloudflare-Secret hinterlegt ist, schickt der Worker
 // den Bearer-Header mit. Damit fallen die anonymen 20 Crawls/Min/IP weg.
@@ -105,75 +168,9 @@ function jinaHeaders(env) {
   return key ? { Authorization: `Bearer ${key}` } : {}
 }
 
-export default {
-  async fetch(request, env) {
-    if (request.method === 'OPTIONS') return preflight()
-    if (request.method !== 'GET') {
-      return jsonResponse({ error: 'method_not_allowed' }, 405)
-    }
-
-    const url = new URL(request.url)
-    const now = resolveNow(url)
-    const [status, trenitalia] = await Promise.all([
-      fetchSbbStatus(),
-      fetchTrenitaliaStatus(env, now)
-    ])
-    const route = buildRoute(status, trenitalia, now)
-    const overall = deriveTransferAwareStatus(status, trenitalia)
-    return jsonResponse(
-      { ...status, ...(overall ?? {}), route },
-      200,
-      { 'Cache-Control': 'public, max-age=60' }
-    )
-  }
-}
-
-// Kombiniert SBB- und Trenitalia-Lage zu einer einzigen Reise-Lage und
-// einer Mannschafts-Nachricht. Bei unbekanntem SBB-Status wird nichts
-// kombiniert (Aufrufer faellt auf SBB-Defaults zurueck).
-function deriveTransferAwareStatus(sbb, trenitalia) {
-  if (!sbb || sbb.status === 'unknown') return null
-
-  const sbbDelay = typeof sbb.delayMinutes === 'number' ? sbb.delayMinutes : 0
-  const trenDep = typeof trenitalia?.dep?.delayMinutes === 'number' ? trenitalia.dep.delayMinutes : 0
-  const trenArr = typeof trenitalia?.arr?.delayMinutes === 'number' ? trenitalia.arr.delayMinutes : 0
-  const trenitaliaDelay = Math.max(trenDep, trenArr)
-
-  const transferMarginMin = TRANSFER_BUFFER_MIN - sbbDelay
-  let transferRisk
-  if (transferMarginMin <= 0) transferRisk = 'missed'
-  else if (transferMarginMin < TRANSFER_TIGHT_THRESHOLD) transferRisk = 'tight'
-  else transferRisk = 'safe'
-
-  let status
-  let message
-  if (transferRisk === 'missed') {
-    status = 'delayed'
-    message = `SBB +${sbbDelay} Min. Anschluss-Trenitalia 11:10 nicht mehr erreichbar. Reiseleitung sucht Plan B.`
-  } else if (transferRisk === 'tight') {
-    status = 'delayed'
-    message = `SBB +${sbbDelay} Min. Umstieg knapp (${transferMarginMin} Min Restpuffer). Schnellfüssig sein.`
-  } else if (sbbDelay > 0 && trenitaliaDelay > 0) {
-    status = 'delayed'
-    message = `SBB +${sbbDelay} Min. Umstieg sicher. Endankunft +${trenitaliaDelay} Min.`
-  } else if (sbbDelay > 0) {
-    status = 'delayed'
-    message = `SBB +${sbbDelay} Min. Umstieg sicher.`
-  } else if (trenitaliaDelay > 0) {
-    status = 'delayed'
-    message = `SBB pünktlich. Endankunft Trenitalia +${trenitaliaDelay} Min.`
-  } else {
-    status = 'on_time'
-    message = DEFAULT_MESSAGE
-  }
-
-  return {
-    status,
-    message,
-    transferMarginMin,
-    transferRisk,
-    trenitaliaDelayMinutes: trenitaliaDelay
-  }
+function isRateLimitedBody(text) {
+  return typeof text === 'string'
+    && /"code":\s*429|RateLimitTriggered|Per IP rate limit/i.test(text)
 }
 
 function resolveNow(url) {
@@ -188,15 +185,100 @@ function resolveNow(url) {
   return Date.now()
 }
 
-function buildRoute(status, trenitalia, nowMs) {
-  const liveDepTime = status?.realtimeDeparture
-    ? hmInZurich(status.realtimeDeparture)
-    : null
-  const liveArrTime = status?.realtimeArrival
-    ? hmInZurich(status.realtimeArrival)
-    : null
-  const platform = status?.platform || null
-  return ANREISE_ROUTE
+// --- Main ---
+
+export default {
+  async fetch(request, env) {
+    if (request.method === 'OPTIONS') return preflight()
+    if (request.method !== 'GET') {
+      return jsonResponse({ error: 'method_not_allowed' }, 405)
+    }
+
+    const url = new URL(request.url)
+    const now = resolveNow(url)
+    const config = getActiveTripConfig(now)
+    const [sbb, trenitalia] = await Promise.all([
+      fetchSbbStatus(config.sbb),
+      fetchTrenitaliaStatus(env, config.trenitalia)
+    ])
+    const route = buildRoute(config.route, sbb, trenitalia, now)
+    const overall = deriveTransferAwareStatus(config, sbb, trenitalia)
+    return jsonResponse(
+      { tripId: config.id, ...sbb, ...(overall ?? {}), route },
+      200,
+      { 'Cache-Control': 'public, max-age=60' }
+    )
+  }
+}
+
+// --- Status-Komposition ---
+
+/**
+ * Kombiniert SBB- und Trenitalia-Lage zu einer einzigen Reise-Lage und
+ * einer Mannschafts-Nachricht. Trip-Config sagt, welche Etappe zuerst
+ * faehrt und damit den Umstieg vermasseln kann.
+ * Bei unbekanntem SBB-Status wird nichts kombiniert (Aufrufer faellt auf
+ * SBB-Defaults zurueck).
+ */
+function deriveTransferAwareStatus(config, sbb, trenitalia) {
+  if (!sbb || sbb.status === 'unknown') return null
+
+  const sbbDelay = typeof sbb.delayMinutes === 'number' ? sbb.delayMinutes : 0
+  const trenDep = typeof trenitalia?.dep?.delayMinutes === 'number' ? trenitalia.dep.delayMinutes : 0
+  const trenArr = typeof trenitalia?.arr?.delayMinutes === 'number' ? trenitalia.arr.delayMinutes : 0
+  const trenitaliaDelay = Math.max(trenDep, trenArr)
+
+  const firstIsSbb = config.firstLeg === 'sbb'
+  const firstLegDelay = firstIsSbb ? sbbDelay : trenitaliaDelay
+  const secondLegDelay = firstIsSbb ? trenitaliaDelay : sbbDelay
+  const firstLegName = firstIsSbb ? 'SBB' : 'Trenitalia'
+  const secondLegName = firstIsSbb ? 'Trenitalia' : 'SBB'
+
+  const transferMarginMin = TRANSFER_BUFFER_MIN - firstLegDelay
+  let transferRisk
+  if (transferMarginMin <= 0) transferRisk = 'missed'
+  else if (transferMarginMin < TRANSFER_TIGHT_THRESHOLD) transferRisk = 'tight'
+  else transferRisk = 'safe'
+
+  let status
+  let message
+  if (transferRisk === 'missed') {
+    status = 'delayed'
+    message = `${firstLegName} +${firstLegDelay} Min. ${config.connectionLabel} nicht mehr erreichbar. Reiseleitung sucht Plan B.`
+  } else if (transferRisk === 'tight') {
+    status = 'delayed'
+    message = `${firstLegName} +${firstLegDelay} Min. Umstieg knapp (${transferMarginMin} Min Restpuffer). Schnellfüssig sein.`
+  } else if (firstLegDelay > 0 && secondLegDelay > 0) {
+    status = 'delayed'
+    message = `${firstLegName} +${firstLegDelay} Min. Umstieg sicher. Endankunft +${secondLegDelay} Min.`
+  } else if (firstLegDelay > 0) {
+    status = 'delayed'
+    message = `${firstLegName} +${firstLegDelay} Min. Umstieg sicher.`
+  } else if (secondLegDelay > 0) {
+    status = 'delayed'
+    message = `${firstLegName} pünktlich. Endankunft ${secondLegName} +${secondLegDelay} Min.`
+  } else {
+    status = 'on_time'
+    message = DEFAULT_MESSAGE
+  }
+
+  return {
+    status,
+    message,
+    transferMarginMin,
+    transferRisk,
+    sbbDelayMinutes: sbbDelay,
+    trenitaliaDelayMinutes: trenitaliaDelay
+  }
+}
+
+// --- Route ---
+
+function buildRoute(routeDef, sbb, trenitalia, nowMs) {
+  const liveDepTime = sbb?.realtimeDeparture ? hmInZurich(sbb.realtimeDeparture) : null
+  const liveArrTime = sbb?.realtimeArrival ? hmInZurich(sbb.realtimeArrival) : null
+  const platform = sbb?.platform || null
+  return routeDef
     .filter((stop) => Date.parse(stop.revealAt) <= nowMs)
     .map((stop) => {
       const out = { ...stop }
@@ -204,8 +286,8 @@ function buildRoute(status, trenitalia, nowMs) {
       if (stop.kind === 'sbb_dep') {
         if (liveDepTime) out.time = liveDepTime
         if (platform) out.platform = platform
-        if (typeof status?.delayMinutes === 'number' && status.delayMinutes > 0) {
-          out.delayMinutes = status.delayMinutes
+        if (typeof sbb?.delayMinutes === 'number' && sbb.delayMinutes > 0) {
+          out.delayMinutes = sbb.delayMinutes
         }
       } else if (stop.kind === 'sbb_arr' && liveArrTime) {
         out.time = liveArrTime
@@ -222,22 +304,19 @@ function buildRoute(status, trenitalia, nowMs) {
     })
 }
 
+// --- Trenitalia ---
+
 /**
  * Versucht die Trenitalia-Daten via r.jina.ai HTTPS-Proxy auf ViaggiaTreno
  * zu holen. Liefert { dep, arr } mit time/platform/delayMinutes, oder null
- * wenn unverfuegbar. Best effort, kein Block bei Fehler.
+ * wenn unverfuegbar oder Validierung fehlschlaegt. Best effort, kein Block.
  */
-function isRateLimitedBody(text) {
-  return typeof text === 'string' && /"code":\s*429|RateLimitTriggered|Per IP rate limit/i.test(text)
-}
-
-async function fetchTrenitaliaStatus(env, nowMs) {
+export async function fetchTrenitaliaStatus(env, config) {
   try {
     // 1. cerca treno: gibt uns Origin-Station-ID des Zuges am heutigen Tag.
-    // 15 min Cache, da Tagesliste sich nicht oft aendert und r.jina.ai
-    // ein striktes Rate-Limit (20 Crawls/Min/IP anonym) hat. Mit Key
-    // sind die Limits deutlich hoeher, Cache schont trotzdem Tokens.
-    const cercaUrl = `${VT_PROXY}/cercaNumeroTrenoTrenoAutocomplete/${TRENITALIA_TRAIN}`
+    // 15 min Cache, da Tagesliste sich nicht oft aendert und das r.jina.ai
+    // Rate-Limit (20 Crawls/Min/IP anonym) sonst getriggert wird.
+    const cercaUrl = `${VT_PROXY}/cercaNumeroTrenoTrenoAutocomplete/${config.trainNo}`
     const cercaRes = await fetch(cercaUrl, {
       headers: jinaHeaders(env),
       cf: { cacheTtl: 900, cacheEverything: true }
@@ -245,11 +324,8 @@ async function fetchTrenitaliaStatus(env, nowMs) {
     if (!cercaRes.ok) return null
     const cercaText = await cercaRes.text()
     if (isRateLimitedBody(cercaText)) return null
-    // r.jina.ai-Wrap: nach "Markdown Content:" kommt der eigentliche Inhalt
     const body = cercaText.split('Markdown Content:')[1]?.trim() ?? ''
-    // Format: "9612 - BATTIPAGLIA - 25/05/26|9612-S09823-1779660000000\n..."
     const lines = body.split('\n').map((l) => l.trim()).filter(Boolean)
-    // Pick die ID-Tupel rechts vom |
     const ids = lines
       .map((l) => l.split('|')[1])
       .filter(Boolean)
@@ -257,17 +333,12 @@ async function fetchTrenitaliaStatus(env, nowMs) {
         const parts = tuple.split('-')
         return { trainNo: parts[0], stationId: parts[1], epoch: parts[2] }
       })
-    // Bevorzuge ID die zu Milano Centrale passt (unser Zug startet dort)
-    let pick = ids.find((i) => i.stationId === MILANO_CENTRALE_ID)
-    if (!pick) {
-      // Fallback: erster Eintrag heute
-      pick = ids[0]
-    }
+    // Bevorzuge ID die zur Startstation des Trips passt
+    let pick = ids.find((i) => i.stationId === config.depStationId)
+    if (!pick) pick = ids[0]
     if (!pick) return null
 
     // 2. andamentoTreno: holt den Live-Lauf des Zuges.
-    // 3 min Cache: Echtzeit-Daten bleiben relativ frisch, aber das
-    // Rate-Limit des Proxy wird nicht ueberreizt.
     const andUrl = `${VT_PROXY}/andamentoTreno/${pick.stationId}/${pick.trainNo}/${pick.epoch}`
     const andRes = await fetch(andUrl, {
       headers: jinaHeaders(env),
@@ -286,18 +357,16 @@ async function fetchTrenitaliaStatus(env, nowMs) {
     const fermate = Array.isArray(andJson?.fermate) ? andJson.fermate : []
     if (fermate.length === 0) return null
 
-    // Beide Halte muessen vorkommen UND Mailand muss vor Turin liegen
-    // (sonst faehrt der Zug in falsche Richtung oder ist ein anderer 9612).
-    const milanoIdx = fermate.findIndex((f) => f.id === MILANO_CENTRALE_ID)
-    const torinoIdx = fermate.findIndex((f) => f.id === TORINO_PORTA_NUOVA_ID)
-    if (milanoIdx < 0 || torinoIdx < 0 || milanoIdx >= torinoIdx) return null
+    // Validierung: beide Halte muessen vorkommen UND Start vor Ziel liegen.
+    const depIdx = fermate.findIndex((f) => f.id === config.depStationId)
+    const arrIdx = fermate.findIndex((f) => f.id === config.arrStationId)
+    if (depIdx < 0 || arrIdx < 0 || depIdx >= arrIdx) return null
 
-    const milano = fermate[milanoIdx]
-    const torino = fermate[torinoIdx]
+    const depStop = fermate[depIdx]
+    const arrStop = fermate[arrIdx]
 
-    // Plausibilitaet: Geplante Mailand-Abfahrt muss im erwarteten Fenster
-    // liegen. Sonst ist es ein fremder 9612, kein Live-Match.
-    if (!isInZurichDepartureWindow(milano?.partenza_teorica)) return null
+    // Plausibilitaet: geplante Abfahrt muss im erwarteten Fenster liegen.
+    if (!isInZurichDepartureWindow(depStop?.partenza_teorica, config.depHourWindowZurich)) return null
 
     const fromStop = (f, mode) => {
       if (!f) return null
@@ -318,20 +387,22 @@ async function fetchTrenitaliaStatus(env, nowMs) {
     }
 
     return {
-      dep: fromStop(milano, 'dep'),
-      arr: fromStop(torino, 'arr')
+      dep: fromStop(depStop, 'dep'),
+      arr: fromStop(arrStop, 'arr')
     }
   } catch {
     return null
   }
 }
 
-async function fetchSbbStatus() {
+// --- SBB ---
+
+async function fetchSbbStatus(config) {
   const params = new URLSearchParams({
-    from: ANREISE_FROM,
-    to: ANREISE_TO,
-    date: ANREISE_DATE,
-    time: ANREISE_TIME,
+    from: config.from,
+    to: config.to,
+    date: config.date,
+    time: config.time,
     limit: '1'
   })
   try {

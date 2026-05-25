@@ -2815,6 +2815,18 @@ main { flex: 1; }
 }
 .debug-empty { color: var(--muted); }
 
+.debug-highlights-section {
+  grid-column: 1 / -1;
+  padding: 10px 14px;
+  background: rgba(184, 138, 59, 0.12);
+  border-bottom: 1px solid rgba(184, 138, 59, 0.28);
+  font-size: 11px;
+  letter-spacing: var(--track-loose);
+  text-transform: uppercase;
+  color: var(--gold-deep);
+  font-weight: 700;
+}
+
 .debug-json-wrap {
   border-radius: 10px;
   border: 1px solid rgba(11, 34, 61, 0.16);
