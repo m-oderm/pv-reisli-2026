@@ -1321,9 +1321,26 @@ function useDragScroll() {
   return { ref, isDragging, onMouseDown }
 }
 
-function HourlyStrip({ points }) {
+function HourlyStrip({ points, iso }) {
   const dragScroll = useDragScroll()
   if (!points || points.length === 0) return null
+
+  // Am heutigen Tag bereits vergangene Stunden ausblenden. Reisezielort
+  // teilt zur Reisezeit dieselbe Zeitzone wie Europe/Zurich, also
+  // identische Stunden-Vergleichsbasis.
+  const nowMs = effectiveNow()
+  const isToday = iso && iso === isoDateInZurich(nowMs)
+  let visiblePoints = points
+  if (isToday) {
+    const currentHour = Number(new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Zurich',
+      hour: '2-digit',
+      hour12: false
+    }).format(new Date(nowMs)))
+    visiblePoints = points.filter((p) => p.hour >= currentHour)
+  }
+  if (visiblePoints.length === 0) return null
+
   return (
     <div
       ref={dragScroll.ref}
@@ -1332,7 +1349,7 @@ function HourlyStrip({ points }) {
       aria-label="Stündliche Vorhersage"
       onMouseDown={dragScroll.onMouseDown}
     >
-      {points.map((p) => {
+      {visiblePoints.map((p) => {
         const temp = typeof p.temp === 'number' ? Math.round(p.temp) : null
         const info = weatherCodeToInfo(p.code ?? 2, p.isNight)
         const Icon = info.Icon
@@ -1641,7 +1658,7 @@ function DayDetailModal({ day, onClose }) {
               <Clock size={12} aria-hidden="true" />
               <span>Tagesverlauf</span>
             </h4>
-            <HourlyStrip points={day.hourly} />
+            <HourlyStrip points={day.hourly} iso={day.iso} />
           </section>
         )}
 
